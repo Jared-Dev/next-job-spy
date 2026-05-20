@@ -67,7 +67,7 @@ export function NoJobsState() {
       <EmptyState
         icon={IconBriefcase}
         title="No jobs yet"
-        description="Add a source first. Once you've added one, hit Refresh to pull postings."
+        description='Add a board source to pull postings automatically — or use the "Add job" button above to paste one in by hand.'
         primaryAction={{ href: '/sources', label: 'Manage sources' }}
       />
     );

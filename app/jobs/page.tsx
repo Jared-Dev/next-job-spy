@@ -3,6 +3,7 @@
 import { Container, Skeleton, Stack } from '@mantine/core';
 import { useState } from 'react';
 
+import { AddJobButton } from '@/components/jobs/AddJobButton';
 import { JobFilters } from '@/components/jobs/JobFilters';
 import { JobsVirtualList } from '@/components/jobs/JobsVirtualList';
 import { NoJobsState } from '@/components/jobs/NoJobsState';
@@ -23,7 +24,8 @@ export default function JobsPage() {
     <Container size="lg" px={0}>
       <PageHeader
         title="Jobs"
-        description="Ingested postings. Save what you like, hide what you don't, tailor on click."
+        description="Pulled from your sources or added by hand. Save what you like, hide what you don't, tailor on click."
+        actions={<AddJobButton />}
       />
 
       <Stack gap="md">

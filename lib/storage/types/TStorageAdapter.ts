@@ -28,6 +28,7 @@ export type TStorageAdapter = {
   useJobs: (filters?: IJobFilters) => IJob[] | undefined;
   useJob: (id: number) => IJob | undefined;
   upsertJobs: (jobs: IJob[]) => Promise<{ inserted: number; updated: number }>;
+  createJob: (job: IJob) => Promise<number>;
   updateJobStatus: (id: number, status: IJob['status']) => Promise<void>;
   updateJobFit: (id: number, fitScore: number, fitNotes: string) => Promise<void>;
 

@@ -146,6 +146,33 @@ export async function upsertJobsAction(
   return { inserted, updated };
 }
 
+export async function createJobAction(job: IJob): Promise<number> {
+  const result = db
+    .insert(schema.job)
+    .values({
+      source: job.source,
+      sourceId: job.sourceId,
+      url: job.url,
+      title: job.title,
+      company: job.company,
+      location: job.location ?? null,
+      country: job.country ?? null,
+      remote: job.remote ?? null,
+      salaryMin: job.salaryMin ?? null,
+      salaryMax: job.salaryMax ?? null,
+      salaryCurrency: job.salaryCurrency ?? null,
+      postedAt: job.postedAt ?? null,
+      descriptionMd: job.descriptionMd ?? null,
+      raw: job.raw ?? null,
+      discoveredAt: job.discoveredAt,
+      fitScore: job.fitScore ?? null,
+      fitNotes: job.fitNotes ?? null,
+      status: job.status,
+    })
+    .run();
+  return Number(result.lastInsertRowid);
+}
+
 export async function updateJobStatusAction(
   id: number,
   status: EJobStatus,

@@ -13,6 +13,7 @@ import {
 import { pinArtifact, saveArtifact, useArtifact, useArtifacts } from './artifacts';
 import { upsertApplication, useApplications } from './applications';
 import {
+  createJob,
   updateJobFit,
   updateJobStatus,
   upsertJobs,
@@ -36,6 +37,7 @@ export const localAdapter: TStorageAdapter = {
   useJobs,
   useJob,
   upsertJobs,
+  createJob,
   updateJobStatus,
   updateJobFit,
   useApplications,
