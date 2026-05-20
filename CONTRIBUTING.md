@@ -46,6 +46,32 @@ codebase that's easy to navigate and easy to delete from.
   can be removed by deleting one folder. Job sources and resume templates are
   the clearest examples.
 
+## Dependencies
+
+Keep the dependency tree small — prefer a little first-party code over a new
+package. When a dependency does earn its place, its **license** matters: Next
+Job Spy is open source under the GNU AGPL-3.0, and a closed-source hosted
+version may follow. A strong-copyleft (GPL / AGPL) dependency could not be
+included in that closed version, so a new dependency must fall in the allowed
+set below.
+
+- **Allowed — permissive.** Add freely: MIT, ISC, BSD-2-Clause, BSD-3-Clause,
+  Apache-2.0, 0BSD, Unlicense, CC0-1.0.
+- **Allowed only as an unmodified dependency — weak copyleft.** LGPL (2.1 /
+  3.0) and MPL-2.0 are fine to *depend on*; do not vendor, fork, or modify
+  their source within this repo.
+- **Never add — breaks the dual-license model.** Strong copyleft (GPL-2.0,
+  GPL-3.0, AGPL-3.0) — fine in the open-source build, but it cannot ship in the
+  closed-source hosted version. Likewise source-available or non-commercial
+  licenses (SSPL, BSL / BUSL, Elastic-2.0, Commons Clause, "non-commercial"
+  Creative Commons, and similar), and any package with no license or one marked
+  "all rights reserved".
+
+If a package you need is licensed as anything other than the permissive set,
+**open an issue before adding it** — license review is far easier up front than
+after a PR is built. Call out every new dependency, and its license, in your
+PR description.
+
 ## Quality gates
 
 Before opening a pull request, both of these must pass:
@@ -101,10 +127,10 @@ Spy's Contributor License Agreement (CLA). It's the standard, unmodified
 [Harmony CLA](https://www.harmonyagreements.org/) — the same agreement many
 open-core projects use.
 
-**Why it exists.** Next Job Spy is source-available under the Elastic License
-2.0, and a hosted commercial version may follow. The CLA lets the project
-include your contribution in both. You keep full ownership of your work and the
-same right to use your own code; you grant the project a broad license to it.
+**Why it exists.** Next Job Spy is open source under the GNU AGPL-3.0, and a
+closed-source hosted version may follow. The CLA lets the project include your
+contribution in both. You keep full ownership of your work and the same right
+to use your own code; you grant the project a broad license to it.
 The full text is in [`cla/cla.md`](./cla/cla.md).
 
 **How to accept it.** Open a pull request as normal. A bot will comment with a

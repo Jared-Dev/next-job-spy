@@ -142,6 +142,16 @@ lib/
 - **`data/` and `.claude/settings.local.json` are gitignored.**
 - **Resumes are outputs, not inputs** — your profile is the source of truth; per-job resumes are generated from it.
 
+## License
+
+Next Job Spy is open source under the [GNU AGPL-3.0](./LICENSE). You're free to
+use, study, modify, and share it. Note the AGPL's network clause: if you run a
+modified version as a service others can use over a network, you must offer
+those users the modified source.
+
+Contributions are accepted under a Contributor License Agreement — see
+[CONTRIBUTING.md](./CONTRIBUTING.md#contributor-license-agreement).
+
 ## Acknowledgments
 
 Inspired by [AIHawk](https://github.com/feder-cr/Jobs_Applier_AI_Agent_AIHawk) (archived April 2026) — the right idea, and the reason this rebuild exists.
