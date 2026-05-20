@@ -1,6 +1,6 @@
 # Next Job Spy
 
-An AI-powered job-search co-pilot that runs entirely on your machine. It discovers job postings across boards, scores them against your profile, and generates ATS-optimized resumes tailored to each role — powered by a Claude subscription you already pay for, with no separate API bill.
+An AI-powered job-search co-pilot that runs entirely on your machine. It discovers job postings across boards, scores them against your profile, and generates ATS-optimized resumes tailored to each role — powered by your existing Claude subscription instead of a separate, metered API bill.
 
 ## The name
 
@@ -21,7 +21,7 @@ Two convictions shape it:
 
 **Your job search is personal — it should run on your machine.** Your career history, the roles you're eyeing, the resumes you're generating: none of that needs to live in someone else's cloud. Next Job Spy is local-first. Every byte sits in a SQLite file in the project directory. No account, no signup, no telemetry.
 
-**You shouldn't pay twice for Claude.** Anyone interested in a tool like this almost certainly already pays for Claude Pro or Max. Making them *also* set up pay-as-you-go Anthropic API billing is both friction and double-paying. So Next Job Spy routes every AI call through the Claude Code CLI you've already authenticated — the ranking, the resume tailoring, the cover letters all draw from the subscription quota you already have. Zero incremental cost.
+**You shouldn't pay twice for Claude.** Anyone interested in a tool like this almost certainly already pays for Claude Pro or Max. Making them *also* set up pay-as-you-go Anthropic API billing is both friction and double-paying. So Next Job Spy routes every AI call through the Claude Code CLI you've already authenticated — ranking, resume tailoring, and cover letters all run inside the Claude plan you already pay for, with no separate metered API account. What you can do is bounded by the usage limits Anthropic sets for your subscription tier, not by a second bill.
 
 ## Goals
 
@@ -30,14 +30,16 @@ Two convictions shape it:
 - **Tailor** — generate genuinely good, ATS-safe resumes customized to each posting, from one canonical profile you maintain.
 - **Refine conversationally** — nudge a generated resume with plain language ("trim to one page", "lead with metrics") instead of hand-editing text.
 - **Stay yours** — local-first storage, JSON export/import, no lock-in.
-- **Cost ~nothing** — ideally the only thing you spend is a Claude subscription you were already paying for.
+- **No second bill** — AI runs on your existing Claude subscription, within whatever usage limits Anthropic applies to your plan, instead of a separate metered API account.
 - **(Later) apply** — drive the application submission itself.
 
 ## How AI auth works
 
-Next Job Spy doesn't talk to the Anthropic API directly. It shells out to the **Claude Code CLI** installed on your machine, which is authenticated with your Claude Pro/Max subscription. Every ranking and resume-tailoring call draws from that subscription's quota — there's no API key to manage and no per-token billing.
+Next Job Spy doesn't talk to the Anthropic API directly. It shells out to the **Claude Code CLI** installed on your machine, authenticated with your Claude Pro/Max subscription. There's no API key to manage and no separate per-token bill.
 
-An optional API key fallback can be set in `/settings` for the rare case where your subscription rate-limits; it's stored in the local SQLite database and otherwise unused.
+What you can get done — how many jobs you rank, how many resumes you tailor — functions within the usage limits Anthropic places on your subscription tier. The app drives Anthropic's Agent SDK, and Agent SDK usage draws on your plan's allowance for it; heavy use can run up against your plan's limits or call for a higher tier. It's the same subscription you already pay for — just not unlimited, and metered by Anthropic, not by us.
+
+An optional API key fallback can be set in `/settings` for when your plan's allowance is exhausted; it's stored in the local SQLite database and otherwise unused.
 
 ## Quick start
 
@@ -80,7 +82,7 @@ Open <http://localhost:3000>. The `/settings` page confirms AI runs on your Clau
 
 ## Token stewardship
 
-Your subscription quota is finite, so the tokens spent are yours to spend well. Principles baked in:
+Your plan's usage allowance is finite, so the tokens spent are yours to spend well. Principles baked in:
 
 - **Prompt caching** — profile and template instructions are sent with cache markers, so repeat calls against the same profile get the cached-input discount.
 - **Right model per task** — Haiku for ranking and template tie-breaks, Sonnet for tailoring and cover letters.
