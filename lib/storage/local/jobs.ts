@@ -6,6 +6,7 @@ import type { IJob } from '@/lib/storage/types/IJob';
 import type { IJobFilters } from '@/lib/storage/types/IJobFilters';
 
 import {
+  createJobAction,
   getJobAction,
   listJobsAction,
   updateJobFitAction,
@@ -70,6 +71,12 @@ export async function upsertJobs(
   const result = await upsertJobsAction(jobs);
   emitRefresh(REFRESH_EVENTS.Jobs);
   return result;
+}
+
+export async function createJob(job: IJob): Promise<number> {
+  const id = await createJobAction(job);
+  emitRefresh(REFRESH_EVENTS.Jobs);
+  return id;
 }
 
 export async function updateJobStatus(

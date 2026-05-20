@@ -115,16 +115,18 @@ export default function JobDetailPage({
           </Group>
 
           <Stack gap="xs" align="flex-end">
-            <Button
-              component="a"
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
-              variant="default"
-              leftSection={<IconExternalLink size={16} stroke={1.6} />}
-            >
-              Open posting
-            </Button>
+            {job.url ? (
+              <Button
+                component="a"
+                href={job.url}
+                target="_blank"
+                rel="noreferrer"
+                variant="default"
+                leftSection={<IconExternalLink size={16} stroke={1.6} />}
+              >
+                Open posting
+              </Button>
+            ) : null}
             <Group gap="xs" wrap="nowrap">
               <Button
                 variant={job.status === EJobStatus.Saved ? 'filled' : 'default'}

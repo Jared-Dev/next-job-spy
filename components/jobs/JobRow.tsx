@@ -103,18 +103,20 @@ export function JobRow({ job }: IJobRowProps) {
           </Stack>
         </Group>
         <Group gap="xs" wrap="nowrap">
-          <Tooltip label="Open posting" withArrow>
-            <ActionIcon
-              variant="default"
-              aria-label="Open posting"
-              component="a"
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <IconExternalLink size={16} stroke={1.6} />
-            </ActionIcon>
-          </Tooltip>
+          {job.url ? (
+            <Tooltip label="Open posting" withArrow>
+              <ActionIcon
+                variant="default"
+                aria-label="Open posting"
+                component="a"
+                href={job.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <IconExternalLink size={16} stroke={1.6} />
+              </ActionIcon>
+            </Tooltip>
+          ) : null}
           {job.status !== EJobStatus.Saved ? (
             <Tooltip label="Save" withArrow>
               <ActionIcon
