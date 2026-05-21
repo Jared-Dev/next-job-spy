@@ -8,9 +8,9 @@ and why it exists. This guide covers how to work in the codebase.
 
 Prerequisites:
 
-- **Node.js 20+** and **pnpm**. This project uses pnpm — `npm` and `yarn`
+- **Node.js 22.13+** and **pnpm**. This project uses pnpm — `npm` and `yarn`
   installs fail fast via a `preinstall` guard. Node bundles Corepack, so
-  `corepack enable pnpm` is all you need.
+  `corepack enable pnpm` is all you need. (pnpm 11 itself requires Node 22.13+.)
 - **Claude Code CLI**, installed and signed in (`claude login`). All AI calls
   route through it on your Claude subscription — there's no API key path for
   normal development.
