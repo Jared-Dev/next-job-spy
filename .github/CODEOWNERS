@@ -1,0 +1,16 @@
+# Code owners for security- and policy-sensitive paths. A pull request that
+# touches any of these auto-requests the maintainer as a reviewer — and once
+# branch protection has "Require review from Code Owners" enabled on master,
+# such a PR cannot merge without that review.
+#
+# This is the safeguard for the license policy: a contributor whose change
+# introduces a new license must edit license-policy.json to classify it, and
+# that edit forces a deliberate maintainer review.
+
+/license-policy.json   @Jared-Dev
+/pnpm-workspace.yaml    @Jared-Dev
+/package.json          @Jared-Dev
+/LICENSE               @Jared-Dev
+/cla/                  @Jared-Dev
+/scripts/              @Jared-Dev
+/.github/              @Jared-Dev

@@ -4,9 +4,17 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Package manager
+
+This project uses **pnpm**. A `preinstall` guard (`only-allow`) makes `npm` and
+`yarn` installs fail — use `pnpm` for every install, script, and dependency
+change. The pnpm version is pinned in `package.json` (`packageManager`); the
+build-script allowlist and `minimumReleaseAge` supply-chain policy live in
+`pnpm-workspace.yaml`. A native dependency must be added to `allowBuilds` there.
+
 ## Dependencies and their licenses
 
-Before adding any npm dependency, check its license. Next Job Spy is open
+Before adding any dependency, check its license. Next Job Spy is open
 source under the GNU AGPL-3.0 and may later ship a closed-source hosted
 version — a strong-copyleft (GPL / AGPL) dependency could not go into that
 closed version, and a bad dependency is painful to remove once code depends on
@@ -26,3 +34,19 @@ If a package you need is licensed as anything other than the permissive set,
 stop and raise it with the maintainer — do not add it on your own judgement.
 Prefer a small amount of first-party code over a new dependency whenever that
 is reasonable.
+
+## Adding a dependency
+
+Before finishing any change that adds a package, you must:
+
+1. **License** — if it introduces a license not already in
+   `license-policy.json`, classify it there: a clearly-permissive license in
+   `allow`, a copyleft or source-available one in `deny`. Anything genuinely
+   ambiguous — stop and ask the maintainer; do not self-approve it. The
+   `check-licenses` CI gate fails on any unclassified license.
+2. **Native build scripts** — if the package compiles or runs an install
+   script, add it to `allowBuilds` in `pnpm-workspace.yaml`, or pnpm skips its
+   build and the package will not work.
+3. **Install with `pnpm`** so `pnpm-lock.yaml` updates. Never `npm` / `yarn`.
+4. **Verify** — `pnpm check-licenses`, `pnpm lint`, and `pnpm build` must all
+   pass before you are done.

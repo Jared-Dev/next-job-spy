@@ -47,9 +47,10 @@ An optional API key fallback can be set in `/settings` for when your plan's allo
 # 1. Make sure Claude Code is installed and signed in with your subscription
 claude login
 
-# 2. Install and run
-npm install
-npm run dev
+# 2. Install and run (this project uses pnpm)
+corepack enable pnpm
+pnpm install
+pnpm dev
 ```
 
 Open <http://localhost:3000>. The `/settings` page confirms AI runs on your Claude subscription — no API key required.
