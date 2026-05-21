@@ -21,12 +21,23 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
+import { ApplicationsPanel } from '@/components/applications/ApplicationsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { adapter } from '@/lib/storage';
+import { EApplicationStatus } from '@/lib/storage/types/EApplicationStatus';
 
 export default function HomePage() {
   const profile = adapter.useProfile();
+  const applications = adapter.useApplications();
+
+  const appliedCount = applications ? String(applications.length) : '—';
+  const interviewingCount = applications
+    ? String(
+        applications.filter((a) => a.status === EApplicationStatus.Interview)
+          .length,
+      )
+    : '—';
 
   const hasProfile =
     profile !== undefined &&
@@ -50,8 +61,18 @@ export default function HomePage() {
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
             <StatCard icon={IconBriefcase} label="Discovered" value="—" hint="Jobs in Phase 2" />
             <StatCard icon={IconCheckupList} label="Saved" value="—" hint="Coming next" />
-            <StatCard icon={IconMailForward} label="Applied" value="—" hint="Coming next" />
-            <StatCard icon={IconSparkles} label="Interviewing" value="—" hint="Coming next" />
+            <StatCard
+              icon={IconMailForward}
+              label="Applied"
+              value={appliedCount}
+              hint="Jobs applied to"
+            />
+            <StatCard
+              icon={IconSparkles}
+              label="Interviewing"
+              value={interviewingCount}
+              hint="In the interview stage"
+            />
           </SimpleGrid>
 
           <Grid gap="md">
@@ -105,6 +126,25 @@ export default function HomePage() {
               </Paper>
             </Grid.Col>
           </Grid>
+
+          <Paper p="lg" withBorder>
+            <Group justify="space-between" align="center" mb="sm">
+              <Group gap="sm">
+                <IconMailForward
+                  size={20}
+                  stroke={1.6}
+                  color="var(--mantine-color-indigo-5)"
+                />
+                <Title order={4} fw={600}>
+                  Applications
+                </Title>
+              </Group>
+              <Button component={Link} href="/applications" size="xs" variant="light">
+                View all
+              </Button>
+            </Group>
+            <ApplicationsPanel limit={5} />
+          </Paper>
         </Stack>
       )}
     </Container>

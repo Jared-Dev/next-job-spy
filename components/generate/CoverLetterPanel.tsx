@@ -9,7 +9,6 @@ import {
   Divider,
   Group,
   Paper,
-  Select,
   Stack,
   Text,
   Title,
@@ -21,45 +20,43 @@ import {
   IconCopy,
   IconExclamationCircle,
   IconHistory,
+  IconMail,
   IconPin,
   IconPinned,
   IconPrinter,
-  IconSparkles,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { hashTailorInputs } from '@/lib/ai/hashInputs';
+import { hashCoverLetterInputs } from '@/lib/ai/hashInputs';
 import { postJson } from '@/lib/ai/postJson';
-import { listTemplates } from '@/lib/resume/templates';
-import { suggestTemplate } from '@/lib/resume/selectTemplate';
 import { adapter } from '@/lib/storage';
 import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
-import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
-import type { IArtifact } from '@/lib/storage/types/IArtifact';
 import type { IGenerateResponse } from '@/lib/ai/types/IGenerateResponse';
+import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
+import type { IArtifact } from '@/lib/storage/types/IArtifact';
 
 import { ArtifactStamp } from './ArtifactStamp';
-import { RefinementBar } from './RefinementBar';
 import { TokenEstimate } from './TokenEstimate';
 import { VerificationNotice } from './VerificationNotice';
-import type { ITailorPanelProps } from './types/ITailorPanelProps';
+import type { ICoverLetterPanelProps } from './types/ICoverLetterPanelProps';
 
-const TAILOR_MAX_OUTPUT = 2500;
+const COVER_LETTER_MAX_OUTPUT = 800;
 
-function estimateInputTokens(profile: unknown, jd: string): number {
-  // 1 token ≈ 4 chars heuristic — close enough for a pre-call estimate.
-  const profileChars = JSON.stringify(profile).length;
-  const jdChars = jd.length;
-  return Math.round((profileChars + jdChars) / 4);
+function estimateInputTokens(profile: unknown, jd: string, resume: string): number {
+  // 1 token ≈ 4 chars — close enough for a pre-call estimate.
+  return Math.round((JSON.stringify(profile).length + jd.length + resume.length) / 4);
 }
 
-export function TailorPanel({ job }: ITailorPanelProps) {
+/** The pinned artifact, else the newest — artifacts arrive newest-first. */
+function pickPrimary(artifacts: IArtifact[]): IArtifact | null {
+  return artifacts.find((a) => a.pinned) ?? artifacts[0] ?? null;
+}
+
+export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
   const profile = adapter.useProfile();
   const settings = adapter.useSettings();
   const artifacts = adapter.useArtifacts(job.id);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
-  const [templateOverride, setTemplateOverride] = useState<ETemplateId | null>(null);
   const [artifactOverride, setArtifactOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -67,66 +64,59 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     adapter.hasApiKey().then(setHasApiKey);
   }, []);
 
-  const suggestion = useMemo(
-    () => (profile ? suggestTemplate(profile, job.title) : null),
-    [profile, job.title],
-  );
-
-  const tailoredArtifacts = useMemo(
-    () => (artifacts ?? []).filter((a) => a.kind === EArtifactKind.TailoredResume),
+  const coverLetters = useMemo(
+    () => (artifacts ?? []).filter((a) => a.kind === EArtifactKind.CoverLetter),
     [artifacts],
   );
 
+  // The pinned/newest tailored resume is fed in as context so the letter and
+  // the resume tell one consistent story. Server falls back to the raw profile.
+  const resumeContext = useMemo(() => {
+    const resumes = (artifacts ?? []).filter(
+      (a) => a.kind === EArtifactKind.TailoredResume,
+    );
+    return pickPrimary(resumes)?.content ?? '';
+  }, [artifacts]);
+
   const defaultArtifactId = useMemo<number | null>(() => {
-    const pinned = tailoredArtifacts.find((a) => a.pinned);
-    const newest = pinned ?? tailoredArtifacts[0];
-    return newest && typeof newest.id === 'number' ? newest.id : null;
-  }, [tailoredArtifacts]);
+    const primary = pickPrimary(coverLetters);
+    return primary && typeof primary.id === 'number' ? primary.id : null;
+  }, [coverLetters]);
 
   const currentArtifactId = artifactOverride ?? defaultArtifactId;
-
   const currentArtifact = useMemo<IArtifact | null>(() => {
     if (currentArtifactId === null) return null;
-    return tailoredArtifacts.find((a) => a.id === currentArtifactId) ?? null;
-  }, [tailoredArtifacts, currentArtifactId]);
-
-  const templateId =
-    templateOverride ??
-    (currentArtifact?.templateId as ETemplateId | undefined) ??
-    suggestion?.id ??
-    ETemplateId.IcTechnical;
-
-  const setTemplateId = (id: ETemplateId) => setTemplateOverride(id);
-  const setCurrentArtifactId = (id: number) => setArtifactOverride(id);
+    return coverLetters.find((a) => a.id === currentArtifactId) ?? null;
+  }, [coverLetters, currentArtifactId]);
 
   const model = settings?.aiModel ?? EAnthropicModel.Sonnet46;
   const inputTokens = profile
-    ? estimateInputTokens(profile, job.descriptionMd ?? '')
+    ? estimateInputTokens(profile, job.descriptionMd ?? '', resumeContext)
     : 0;
 
   async function handleGenerate() {
-    if (!profile || !templateId) return;
-    const inputHash = hashTailorInputs({
+    if (!profile) return;
+    const inputHash = hashCoverLetterInputs({
       profile,
       jobDescription: job.descriptionMd ?? '',
       jobTitle: job.title,
-      templateId,
+      resumeContext,
       model,
     });
-    const cached = tailoredArtifacts.find((a) => a.inputHash === inputHash);
+    const cached = coverLetters.find((a) => a.inputHash === inputHash);
     if (cached && typeof cached.id === 'number') {
-      setCurrentArtifactId(cached.id);
+      setArtifactOverride(cached.id);
       notifications.show({
         color: 'indigo',
         icon: <IconCheck size={18} />,
-        title: 'Using cached resume',
+        title: 'Using cached cover letter',
         message: 'Inputs match a previous generation; no tokens spent.',
       });
       return;
     }
     setBusy(true);
     try {
-      const response = await postJson<IGenerateResponse>('/api/ai/tailor-resume', {
+      const response = await postJson<IGenerateResponse>('/api/ai/cover-letter', {
         profile,
         job: {
           title: job.title,
@@ -134,71 +124,23 @@ export function TailorPanel({ job }: ITailorPanelProps) {
           location: job.location,
           description: job.descriptionMd ?? '',
         },
-        templateId,
+        tailoredResume: resumeContext || undefined,
         model,
       });
       const id = await adapter.saveArtifact({
         jobId: job.id,
-        kind: EArtifactKind.TailoredResume,
-        templateId,
+        kind: EArtifactKind.CoverLetter,
         inputHash,
         content: response.content,
         usage: response.usage,
         createdAt: Math.floor(Date.now() / 1000),
       });
-      setCurrentArtifactId(id);
+      setArtifactOverride(id);
     } catch (err) {
       notifications.show({
         color: 'red',
         icon: <IconExclamationCircle size={18} />,
         title: 'Generation failed',
-        message: err instanceof Error ? err.message : 'Unknown error',
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRefine(instruction: string) {
-    if (!profile || !templateId || !currentArtifact) return;
-    setBusy(true);
-    try {
-      const response = await postJson<IGenerateResponse>('/api/ai/refine-resume', {
-        profile,
-        job: {
-          title: job.title,
-          company: job.company,
-          location: job.location,
-          description: job.descriptionMd ?? '',
-        },
-        templateId,
-        baseContent: currentArtifact.content,
-        instruction,
-        scope: 'whole',
-        model,
-      });
-      const id = await adapter.saveArtifact({
-        jobId: job.id,
-        parentArtifactId: currentArtifact.id,
-        kind: EArtifactKind.TailoredResume,
-        templateId,
-        prompt: instruction,
-        content: response.content,
-        usage: response.usage,
-        createdAt: Math.floor(Date.now() / 1000),
-      });
-      setCurrentArtifactId(id);
-      notifications.show({
-        color: 'teal',
-        icon: <IconCheck size={18} />,
-        title: 'Refined',
-        message: 'New version saved. Old versions remain in the history.',
-      });
-    } catch (err) {
-      notifications.show({
-        color: 'red',
-        icon: <IconExclamationCircle size={18} />,
-        title: 'Refinement failed',
         message: err instanceof Error ? err.message : 'Unknown error',
       });
     } finally {
@@ -216,42 +158,38 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     window.open(`/r/${currentArtifact.id}/print`, '_blank', 'noopener,noreferrer');
   }
 
-  async function copyMarkdown() {
+  async function copyText() {
     if (!currentArtifact) return;
     await navigator.clipboard.writeText(currentArtifact.content);
     notifications.show({
       color: 'teal',
       icon: <IconCheck size={18} />,
       title: 'Copied to clipboard',
-      message: 'Markdown is on your clipboard.',
+      message: 'Cover letter text is on your clipboard.',
     });
   }
 
   const profileEmpty =
-    !profile ||
-    (!profile.fullName && (profile.workHistory?.length ?? 0) === 0);
+    !profile || (!profile.fullName && (profile.workHistory?.length ?? 0) === 0);
 
   return (
     <Paper p="lg" withBorder>
-      <Group justify="space-between" align="flex-start" wrap="nowrap" mb="sm">
-        <Group gap="sm" wrap="nowrap" align="center">
-          <IconSparkles size={20} stroke={1.6} color="var(--mantine-color-indigo-5)" />
-          <Title order={4} fw={600}>
-            Tailor resume
-          </Title>
-          {tailoredArtifacts.length > 0 ? (
-            <Badge size="xs" variant="light" color="indigo">
-              {tailoredArtifacts.length} version
-              {tailoredArtifacts.length === 1 ? '' : 's'}
-            </Badge>
-          ) : null}
-        </Group>
+      <Group gap="sm" wrap="nowrap" align="center" mb="sm">
+        <IconMail size={20} stroke={1.6} color="var(--mantine-color-indigo-5)" />
+        <Title order={4} fw={600}>
+          Cover letter
+        </Title>
+        {coverLetters.length > 0 ? (
+          <Badge size="xs" variant="light" color="indigo">
+            {coverLetters.length} version{coverLetters.length === 1 ? '' : 's'}
+          </Badge>
+        ) : null}
       </Group>
 
       {profileEmpty ? (
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            Fill in your profile first — the tailoring engine generates from your
+            Fill in your profile first — the cover letter is generated from your
             canonical career data.
           </Text>
           <Box>
@@ -263,7 +201,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
       ) : hasApiKey === false ? (
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            Add your Anthropic API key in Settings to enable tailoring.
+            Add your Anthropic API key in Settings to enable generation.
           </Text>
           <Box>
             <Anchor href="/settings" size="sm">
@@ -273,22 +211,13 @@ export function TailorPanel({ job }: ITailorPanelProps) {
         </Stack>
       ) : (
         <Stack gap="md">
+          <Text size="xs" c="dimmed">
+            {resumeContext
+              ? 'Written from your profile and your latest tailored resume, so the letter and resume stay consistent.'
+              : 'Written from your profile. Generate a tailored resume first for a more consistent letter.'}
+          </Text>
+
           <Group gap="sm" align="flex-end" wrap="wrap">
-            <Select
-              label="Template"
-              description={
-                suggestion
-                  ? `Auto-pick: ${suggestion.id} (${suggestion.confidence}). ${suggestion.reason}`
-                  : undefined
-              }
-              data={listTemplates().map((t) => ({
-                value: t.id,
-                label: `${t.label} — ${t.bestFor}`,
-              }))}
-              value={templateId ?? ''}
-              onChange={(v) => setTemplateId((v as ETemplateId) || ETemplateId.IcTechnical)}
-              w={360}
-            />
             <Tooltip
               label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
               withArrow
@@ -297,15 +226,14 @@ export function TailorPanel({ job }: ITailorPanelProps) {
             >
               <Button
                 onClick={handleGenerate}
-                loading={busy && !currentArtifact}
-                disabled={!templateId}
-                leftSection={<IconSparkles size={16} stroke={1.6} />}
+                loading={busy}
+                leftSection={<IconMail size={16} stroke={1.6} />}
               >
                 <Group gap={6} wrap="nowrap">
                   <span>{currentArtifact ? 'Regenerate' : 'Generate'}</span>
                   <TokenEstimate
                     inputTokens={inputTokens}
-                    maxOutputTokens={TAILOR_MAX_OUTPUT}
+                    maxOutputTokens={COVER_LETTER_MAX_OUTPUT}
                   />
                 </Group>
               </Button>
@@ -329,7 +257,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                 <Button
                   variant="default"
                   leftSection={<IconCopy size={16} stroke={1.6} />}
-                  onClick={copyMarkdown}
+                  onClick={copyText}
                 >
                   Copy
                 </Button>
@@ -347,20 +275,9 @@ export function TailorPanel({ job }: ITailorPanelProps) {
           {currentArtifact ? (
             <>
               <Divider label="Latest version" labelPosition="left" />
-              <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Stack gap={4}>
-                  {currentArtifact.prompt ? (
-                    <Text size="xs" c="dimmed">
-                      Refinement: <em>{currentArtifact.prompt}</em>
-                    </Text>
-                  ) : null}
-                  <Text size="xs" c="dimmed">
-                    Template: {currentArtifact.templateId ?? '—'}
-                  </Text>
-                </Stack>
+              <Group justify="flex-end">
                 <ArtifactStamp artifact={currentArtifact} />
               </Group>
-
               <Paper
                 p="md"
                 withBorder
@@ -377,25 +294,22 @@ export function TailorPanel({ job }: ITailorPanelProps) {
               </Paper>
 
               <VerificationNotice artifact={currentArtifact} />
-
-              <Divider label="Refine without regenerating from scratch" labelPosition="left" />
-              <RefinementBar onSubmit={handleRefine} busy={busy} disabled={!templateId} />
             </>
           ) : null}
 
-          {tailoredArtifacts.length > 1 ? (
+          {coverLetters.length > 1 ? (
             <>
               <Divider
                 label={
                   <Group gap={6}>
                     <IconHistory size={14} stroke={1.6} />
-                    <Text size="xs">Version history ({tailoredArtifacts.length})</Text>
+                    <Text size="xs">Version history ({coverLetters.length})</Text>
                   </Group>
                 }
                 labelPosition="left"
               />
               <Stack gap={6}>
-                {tailoredArtifacts.map((art) => {
+                {coverLetters.map((art) => {
                   const isCurrent = art.id === currentArtifactId;
                   return (
                     <Group
@@ -412,15 +326,16 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                           : 'transparent',
                         cursor: 'pointer',
                       }}
-                      onClick={() => typeof art.id === 'number' && setCurrentArtifactId(art.id)}
+                      onClick={() =>
+                        typeof art.id === 'number' && setArtifactOverride(art.id)
+                      }
                     >
                       <Stack gap={0}>
                         <Text size="xs" fw={500}>
-                          {art.prompt ? art.prompt : 'Initial generation'}
+                          {new Date(art.createdAt * 1000).toLocaleString()}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          {new Date(art.createdAt * 1000).toLocaleString()}
-                          {art.pinned ? ' · pinned' : ''}
+                          {art.pinned ? 'pinned' : 'generated'}
                         </Text>
                       </Stack>
                       <ArtifactStamp artifact={art} compact />

@@ -12,6 +12,7 @@ import {
   Select,
   Skeleton,
   Stack,
+  Switch,
   Text,
   ThemeIcon,
 } from '@mantine/core';
@@ -25,6 +26,7 @@ import {
 import { useEffect, useState, useTransition } from 'react';
 
 import { adapter } from '@/lib/storage';
+import { EVerificationMode } from '@/lib/storage/types/EVerificationMode';
 import type { ISettings } from '@/lib/storage/types/ISettings';
 
 import type { ISettingsFormProps } from './types/ISettingsFormProps';
@@ -79,6 +81,9 @@ function SettingsFormInner({
       model: settings.aiModel,
       maxTokens: settings.aiMaxTokens,
       autoRefreshIntervalMin: String(settings.autoRefreshIntervalMin ?? 0),
+      aiImportFallback: settings.aiImportFallback ?? true,
+      verificationMode: settings.verificationMode ?? EVerificationMode.Thorough,
+      crossCheckNumbers: settings.crossCheckNumbers ?? true,
     },
     validate: {
       model: (v) => (v ? null : 'Pick a model'),
@@ -102,6 +107,9 @@ function SettingsFormInner({
               aiMaxTokens: values.maxTokens,
               autoRefreshIntervalMin:
                 Number.parseInt(values.autoRefreshIntervalMin, 10) || 0,
+              aiImportFallback: values.aiImportFallback,
+              verificationMode: values.verificationMode,
+              crossCheckNumbers: values.crossCheckNumbers,
             });
             notifications.show({
               color: 'teal',
@@ -177,6 +185,34 @@ function SettingsFormInner({
             { value: '240', label: 'Every 4 hours' },
           ]}
           {...form.getInputProps('autoRefreshIntervalMin')}
+        />
+
+        <Switch
+          label="AI-assisted job import"
+          description="When you add a job by URL, fall back to a Claude extraction pass if the page can't be read directly. Runs on your Claude subscription."
+          {...form.getInputProps('aiImportFallback', { type: 'checkbox' })}
+        />
+
+        <Select
+          label="Fabrication check"
+          description="Generated resumes and cover letters are checked against your profile for invented facts before you send them."
+          data={[
+            {
+              value: EVerificationMode.Thorough,
+              label: 'Thorough — always verify with the stronger model',
+            },
+            {
+              value: EVerificationMode.Fast,
+              label: 'Fast — quick model first, escalate when risk is detected',
+            },
+          ]}
+          {...form.getInputProps('verificationMode')}
+        />
+
+        <Switch
+          label="Cross-check numbers"
+          description="Flag any number in generated content that isn't in your profile — a free check that runs regardless of the model."
+          {...form.getInputProps('crossCheckNumbers', { type: 'checkbox' })}
         />
 
         <Group justify="flex-end">

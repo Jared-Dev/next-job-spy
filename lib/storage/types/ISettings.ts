@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { EVerificationMode } from './EVerificationMode';
 import { SourceConfigSchema } from './ISourceConfig';
 
 export const SettingsSchema = z.object({
@@ -10,6 +11,14 @@ export const SettingsSchema = z.object({
   sourceConfigs: z.array(SourceConfigSchema).default([]),
   /** 0 disables periodic auto-refresh. Otherwise the polling interval in minutes. */
   autoRefreshIntervalMin: z.number().int().nonnegative().max(1440).default(0),
+  /** When a job-URL import returns thin results, fall back to an AI extraction pass. */
+  aiImportFallback: z.boolean().default(true),
+  /** How thoroughly generated documents are fact-checked against the profile. */
+  verificationMode: z
+    .nativeEnum(EVerificationMode)
+    .default(EVerificationMode.Thorough),
+  /** Cross-check every number in generated content against the profile (zero-token). */
+  crossCheckNumbers: z.boolean().default(true),
   /** Unix seconds — last successful refresh-all timestamp. */
   lastRefreshAt: z.number().int().nonnegative().optional(),
 });

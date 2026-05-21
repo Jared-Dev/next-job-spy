@@ -2,9 +2,11 @@
 
 import { use } from 'react';
 
+import { COVER_LETTER_PRINT_CSS } from '@/lib/coverLetter/coverLetterPrintCss';
 import { markdownToHtml } from '@/lib/resume/markdownToHtml';
 import { getTemplate } from '@/lib/resume/templates';
 import { adapter } from '@/lib/storage';
+import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
 import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
 export default function PrintArtifactPage({
@@ -20,9 +22,19 @@ export default function PrintArtifactPage({
     return null;
   }
 
+  const html = markdownToHtml(artifact.content);
+
+  if (artifact.kind === EArtifactKind.CoverLetter) {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: COVER_LETTER_PRINT_CSS }} />
+        <div className="cover-letter" dangerouslySetInnerHTML={{ __html: html }} />
+      </>
+    );
+  }
+
   const templateId = (artifact.templateId as ETemplateId) ?? ETemplateId.IcTechnical;
   const template = getTemplate(templateId);
-  const html = markdownToHtml(artifact.content);
 
   return (
     <>

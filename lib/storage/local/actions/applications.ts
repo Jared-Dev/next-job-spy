@@ -26,7 +26,7 @@ export async function listApplicationsAction(): Promise<IApplication[]> {
   return rows.map(rowToApp);
 }
 
-export async function upsertApplicationAction(app: IApplication): Promise<void> {
+export async function upsertApplicationAction(app: IApplication): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
   if (typeof app.id === 'number') {
     db.update(schema.application)
@@ -39,15 +39,17 @@ export async function upsertApplicationAction(app: IApplication): Promise<void> 
       })
       .where(eq(schema.application.id, app.id))
       .run();
-  } else {
-    db.insert(schema.application)
-      .values({
-        jobId: app.jobId,
-        status: app.status,
-        submittedAt: app.submittedAt ?? null,
-        notes: app.notes ?? null,
-        updatedAt: now,
-      })
-      .run();
+    return app.id;
   }
+  const result = db
+    .insert(schema.application)
+    .values({
+      jobId: app.jobId,
+      status: app.status,
+      submittedAt: app.submittedAt ?? null,
+      notes: app.notes ?? null,
+      updatedAt: now,
+    })
+    .run();
+  return Number(result.lastInsertRowid);
 }

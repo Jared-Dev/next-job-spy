@@ -1,0 +1,35 @@
+/* The panel is a query container — rows adapt to the panel's own width,
+   so the same component is dense in a dashboard column and roomy full-page. */
+.panel {
+  container-type: inline-size;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.primary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Enough width to lay the row out horizontally with the metadata trailing. */
+@container (min-width: 540px) {
+  .row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
