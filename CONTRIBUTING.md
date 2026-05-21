@@ -8,7 +8,9 @@ and why it exists. This guide covers how to work in the codebase.
 
 Prerequisites:
 
-- **Node.js 20+** and npm.
+- **Node.js 20+** and **pnpm**. This project uses pnpm — `npm` and `yarn`
+  installs fail fast via a `preinstall` guard. Node bundles Corepack, so
+  `corepack enable pnpm` is all you need.
 - **Claude Code CLI**, installed and signed in (`claude login`). All AI calls
   route through it on your Claude subscription — there's no API key path for
   normal development.
@@ -18,8 +20,9 @@ Then:
 ```bash
 git clone <your-fork>
 cd next-job-spy
-npm install
-npm run dev
+corepack enable pnpm
+pnpm install
+pnpm dev
 ```
 
 Open <http://localhost:3000>. The [README quick start](./README.md#quick-start)
@@ -77,11 +80,11 @@ PR description.
 Before opening a pull request, both of these must pass:
 
 ```bash
-npm run lint     # ESLint — convention + correctness rules
-npm run build    # type-check + production build
+pnpm lint     # ESLint — convention + correctness rules
+pnpm build    # type-check + production build
 ```
 
-`npm run build` runs the TypeScript check and will fail on type errors or
+`pnpm build` runs the TypeScript check and will fail on type errors or
 lint-rule violations. Keep it green.
 
 A GitHub Actions workflow runs both on every pull request — a red check blocks

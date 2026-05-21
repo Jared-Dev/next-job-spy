@@ -1,0 +1,30 @@
+# Native/build-script dependencies reviewed and allowed to run install
+# scripts. pnpm blocks all dependency scripts by default (supply-chain
+# defense); only these recognized, legitimate packages are permitted.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+
+# Refuse to install a package version until it has been public this many
+# minutes. 10080 = 7 days — long enough that the overwhelming majority of
+# hijacked or malicious releases are detected and pulled from the registry
+# before they could land here. Lower it (4320 = 3 days) for faster updates
+# at slightly more exposure.
+minimumReleaseAge: 10080
+
+# Versions exempt from the age requirement — packages whose only published
+# version is still inside the window. pnpm maintains this list automatically.
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.146'
+  - '@anthropic-ai/claude-agent-sdk@0.3.146'
+  - '@tanstack/react-virtual@3.13.25'
+  - '@tanstack/virtual-core@3.15.0'

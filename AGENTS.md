@@ -4,9 +4,17 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Package manager
+
+This project uses **pnpm**. A `preinstall` guard (`only-allow`) makes `npm` and
+`yarn` installs fail — use `pnpm` for every install, script, and dependency
+change. The pnpm version is pinned in `package.json` (`packageManager`); the
+build-script allowlist and `minimumReleaseAge` supply-chain policy live in
+`pnpm-workspace.yaml`. A native dependency must be added to `allowBuilds` there.
+
 ## Dependencies and their licenses
 
-Before adding any npm dependency, check its license. Next Job Spy is open
+Before adding any dependency, check its license. Next Job Spy is open
 source under the GNU AGPL-3.0 and may later ship a closed-source hosted
 version — a strong-copyleft (GPL / AGPL) dependency could not go into that
 closed version, and a bad dependency is painful to remove once code depends on
