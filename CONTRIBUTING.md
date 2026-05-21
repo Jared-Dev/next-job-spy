@@ -84,6 +84,9 @@ npm run build    # type-check + production build
 `npm run build` runs the TypeScript check and will fail on type errors or
 lint-rule violations. Keep it green.
 
+A GitHub Actions workflow runs both on every pull request — a red check blocks
+the merge. Running them locally first is just faster than waiting on CI.
+
 ## Project structure
 
 The [README layout section](./README.md#layout) maps the tree. Key ideas:

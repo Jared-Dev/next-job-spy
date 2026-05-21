@@ -4,7 +4,6 @@
 
 ## Checklist
 
-- [ ] `npm run lint` and `npm run build` both pass.
 - [ ] This PR is focused on a single feature or fix.
 - [ ] I wrote this code myself, or otherwise have the right to submit it under the project's license.
 - [ ] This contribution is **not** owned by my employer, or my employer has accepted the [Entity CLA](../blob/master/cla/entity.odt).
