@@ -34,3 +34,19 @@ If a package you need is licensed as anything other than the permissive set,
 stop and raise it with the maintainer — do not add it on your own judgement.
 Prefer a small amount of first-party code over a new dependency whenever that
 is reasonable.
+
+## Adding a dependency
+
+Before finishing any change that adds a package, you must:
+
+1. **License** — if it introduces a license not already in
+   `license-policy.json`, classify it there: a clearly-permissive license in
+   `allow`, a copyleft or source-available one in `deny`. Anything genuinely
+   ambiguous — stop and ask the maintainer; do not self-approve it. The
+   `check-licenses` CI gate fails on any unclassified license.
+2. **Native build scripts** — if the package compiles or runs an install
+   script, add it to `allowBuilds` in `pnpm-workspace.yaml`, or pnpm skips its
+   build and the package will not work.
+3. **Install with `pnpm`** so `pnpm-lock.yaml` updates. Never `npm` / `yarn`.
+4. **Verify** — `pnpm check-licenses`, `pnpm lint`, and `pnpm build` must all
+   pass before you are done.

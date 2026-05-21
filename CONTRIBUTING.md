@@ -75,6 +75,11 @@ If a package you need is licensed as anything other than the permissive set,
 after a PR is built. Call out every new dependency, and its license, in your
 PR description.
 
+CI runs `pnpm check-licenses`, which checks every dependency license against
+[`license-policy.json`](./license-policy.json). A license that lands in neither
+the allow nor the deny list fails the build until you classify it there — so a
+new, unreviewed license can't slip in silently.
+
 ## Quality gates
 
 Before opening a pull request, both of these must pass:
