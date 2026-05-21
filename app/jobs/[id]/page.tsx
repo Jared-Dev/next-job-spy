@@ -13,22 +13,25 @@ import {
   Stack,
   Text,
   Title,
+  Typography,
 } from '@mantine/core';
 import {
   IconArrowLeft,
   IconBuildingSkyscraper,
   IconExternalLink,
   IconEyeOff,
-  IconMail,
   IconMapPin,
   IconStar,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { use, useTransition } from 'react';
 
+import { ApplicationPanel } from '@/components/applications/ApplicationPanel';
+import { CoverLetterPanel } from '@/components/generate/CoverLetterPanel';
 import { TailorPanel } from '@/components/generate/TailorPanel';
 import { FitScoreRing } from '@/components/jobs/FitScoreRing';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { markdownToHtml } from '@/lib/resume/markdownToHtml';
 import { adapter } from '@/lib/storage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
 
@@ -143,22 +146,6 @@ export default function JobDetailPage({
                 {job.status === EJobStatus.Saved ? 'Saved' : 'Save'}
               </Button>
               <Button
-                variant={job.status === EJobStatus.Applied ? 'filled' : 'default'}
-                color="violet"
-                size="xs"
-                leftSection={<IconMail size={14} stroke={1.6} />}
-                onClick={() =>
-                  setStatus(
-                    job.status === EJobStatus.Applied
-                      ? EJobStatus.Saved
-                      : EJobStatus.Applied,
-                  )
-                }
-                disabled={pending}
-              >
-                {job.status === EJobStatus.Applied ? 'Applied' : 'Mark applied'}
-              </Button>
-              <Button
                 variant="subtle"
                 color="gray"
                 size="xs"
@@ -177,21 +164,25 @@ export default function JobDetailPage({
         <TailorPanel job={job} />
       </Box>
 
+      <Box mb="lg">
+        <CoverLetterPanel job={job} />
+      </Box>
+
+      <Box mb="lg">
+        <ApplicationPanel job={job} />
+      </Box>
+
       <Paper p="lg" withBorder>
         <Title order={4} fw={600} mb="sm">
           Description
         </Title>
         <Divider mb="md" />
         {job.descriptionMd ? (
-          <Box
-            style={{
-              whiteSpace: 'pre-wrap',
-              fontSize: 'var(--mantine-font-size-sm)',
-              lineHeight: 1.55,
-            }}
-          >
-            {job.descriptionMd}
-          </Box>
+          <Typography>
+            <div
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(job.descriptionMd) }}
+            />
+          </Typography>
         ) : (
           <Text c="dimmed">No description text was returned by the source.</Text>
         )}

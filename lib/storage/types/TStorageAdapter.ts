@@ -34,7 +34,7 @@ export type TStorageAdapter = {
 
   // Applications (Phase 2/3)
   useApplications: () => IApplication[] | undefined;
-  upsertApplication: (app: IApplication) => Promise<void>;
+  upsertApplication: (app: IApplication) => Promise<number>;
 
   // Artifacts (Phase 3)
   useArtifacts: (jobId?: number) => IArtifact[] | undefined;

@@ -20,6 +20,7 @@ import {
   IconLayoutDashboard,
   IconPalette,
   IconSearch,
+  IconSend,
   IconSettings,
   IconSparkles,
   IconUser,
@@ -36,6 +37,7 @@ import { ThemeToggle } from './ThemeToggle';
 const NAV_ITEMS: INavItem[] = [
   { href: '/', label: 'Dashboard', icon: IconLayoutDashboard },
   { href: '/jobs', label: 'Jobs', icon: IconBriefcase },
+  { href: '/applications', label: 'Applications', icon: IconSend },
   { href: '/sources', label: 'Sources', icon: IconSearch },
   { href: '/profile', label: 'Profile', icon: IconUser },
   { href: '/settings', label: 'Settings', icon: IconSettings },
@@ -73,6 +75,13 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       description: 'Discovered postings',
       onClick: () => router.push('/jobs'),
       leftSection: <IconBriefcase size={18} stroke={1.5} />,
+    },
+    {
+      id: 'applications',
+      label: 'Applications',
+      description: 'Track what you applied to',
+      onClick: () => router.push('/applications'),
+      leftSection: <IconSend size={18} stroke={1.5} />,
     },
     {
       id: 'sources',

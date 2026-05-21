@@ -26,3 +26,15 @@ export function hashTailorInputs(parts: {
     `${parts.templateId}|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${JSON.stringify(parts.profile)}`,
   );
 }
+
+export function hashCoverLetterInputs(parts: {
+  profile: unknown;
+  jobDescription: string;
+  jobTitle: string;
+  resumeContext: string;
+  model: string;
+}): string {
+  return cyrb53(
+    `cover|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.resumeContext}|${JSON.stringify(parts.profile)}`,
+  );
+}

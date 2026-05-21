@@ -74,3 +74,44 @@ Rules:
 - If the instruction is ambiguous, apply the most conservative reasonable interpretation.
 - If the instruction asks for content that would require invented facts, omit and explain in a single trailing comment line prefixed with "<!-- NOTE: ".
 - Output: the complete revised resume in Markdown. Do not include diff markers or commentary outside the resume itself (except the optional NOTE comment).`;
+
+export const IMPORT_JOB_SYSTEM = `You extract structured job-posting fields from the visible text of a job-posting web page.
+
+Output ONLY a JSON object — no prose, no markdown fences — matching this shape:
+{
+  "title": string,
+  "company": string,
+  "location": string,
+  "remote": boolean,
+  "descriptionMd": string
+}
+
+Rules:
+- Every field is optional — omit any field the page text does not clearly support. Never guess or invent.
+- "title": the job title only (e.g. "Staff Frontend Engineer"), not the company or location.
+- "company": the hiring company's name.
+- "location": the role's location as written — city/region/country, or "Remote".
+- "remote": true only if the posting clearly states the role is remote.
+- "descriptionMd": the job description — responsibilities, requirements, about-the-role — as clean Markdown. Exclude site navigation, cookie notices, "apply" buttons, related-job lists, and other page chrome.
+- If the page text is a login wall, an error page, or otherwise not a job posting, return an empty object {}.`;
+
+export const FABRICATION_CHECK_SYSTEM = `You verify that a generated career document (a resume or cover letter) contains no fabricated facts. You are given the generated CONTENT and the candidate's canonical PROFILE. The PROFILE is the single source of truth.
+
+Output ONLY a JSON object — no prose, no markdown fences:
+{ "findings": [ { "claim": string, "issue": string } ] }
+
+A finding is a specific factual claim in the CONTENT that is NOT supported by the PROFILE:
+- employers, job titles, or employment dates not in the profile
+- metrics or numbers not in the profile (e.g. "increased revenue 40%", "led a team of 12")
+- skills, tools, certifications, or degrees the profile does not list
+- named achievements, awards, or projects the profile does not mention
+
+For each finding: "claim" quotes the unsupported text; "issue" states briefly why the profile does not support it.
+
+Do NOT flag:
+- rephrasing, summarizing, condensing, or reordering of facts that ARE in the profile
+- ordinary connective or framing prose that asserts no new fact
+- formatting of dates or locations that is consistent with the profile
+- reasonable, non-factual aspiration ("eager to contribute to…")
+
+Be thorough but precise: a missed fabrication is worse than a clean document, and a false flag on legitimate rephrasing wastes the candidate's time. If every factual claim traces to the profile, return { "findings": [] }.`;

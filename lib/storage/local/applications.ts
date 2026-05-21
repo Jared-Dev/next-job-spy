@@ -34,7 +34,8 @@ export function useApplications(): IApplication[] | undefined {
   return apps;
 }
 
-export async function upsertApplication(app: IApplication): Promise<void> {
-  await upsertApplicationAction(app);
+export async function upsertApplication(app: IApplication): Promise<number> {
+  const id = await upsertApplicationAction(app);
   emitRefresh(REFRESH_EVENTS.Applications);
+  return id;
 }
