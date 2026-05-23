@@ -22,12 +22,12 @@ import {
   IconSearch,
   IconSend,
   IconSettings,
-  IconSparkles,
   IconUser,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+import { Logo } from '@/components/brand/Logo';
 import { useAutoRefresh } from '@/lib/jobs/useAutoRefresh';
 
 import { LastRefreshChip } from './LastRefreshChip';
@@ -50,7 +50,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   useAutoRefresh();
 
   // Print routes render without app chrome so the page is a clean document.
-  if (pathname?.startsWith('/r/')) {
+  if (pathname?.startsWith('/resume/')) {
     return <>{children}</>;
   }
 
@@ -116,12 +116,13 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Group gap={8} wrap="nowrap">
-              <IconSparkles size={20} stroke={1.6} color="var(--mantine-color-indigo-5)" />
-              <Text fw={600} size="sm" component={Link} href="/">
-                next-job-spy
-              </Text>
-            </Group>
+            <Link
+              href="/"
+              aria-label="Next Job Spy home"
+              style={{ display: 'flex', alignItems: 'center' }}
+            >
+              <Logo size={26} />
+            </Link>
           </Group>
 
           <Group gap="sm" wrap="nowrap">

@@ -1,11 +1,6 @@
 import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 import type { IProfile } from '@/lib/storage/types/IProfile';
 
-import {
-  ETemplateConfidence,
-  type ITemplateSuggestion,
-} from './types/ITemplateSuggestion';
-
 const MANAGER_TOKENS = [
   'manager',
   'director',
@@ -13,7 +8,7 @@ const MANAGER_TOKENS = [
   'chief',
   'vp ',
   'vice president',
-  ' lead', // " lead" to avoid matching "lead engineer" though common, accept as borderline
+  ' lead',
   ' staff',
   'principal',
 ];
@@ -46,6 +41,13 @@ const GENERALIST_TOKENS = [
   'founding ',
 ];
 
+/** Stable default order; also the tie-break when nothing distinguishes templates. */
+const TEMPLATE_ORDER: ETemplateId[] = [
+  ETemplateId.IcTechnical,
+  ETemplateId.Leader,
+  ETemplateId.Generalist,
+];
+
 function pad(s: string): string {
   return ` ${s.toLowerCase()} `;
 }
@@ -64,38 +66,21 @@ function classify(title: string | undefined): ETemplateId | null {
   return null;
 }
 
-export function suggestTemplate(
+/**
+ * Ranks every resume template by fit for a job + profile, best first. A
+ * template scores for matching the job title (weighted highest) and the
+ * candidate's most recent title; ties keep the stable default order. The first
+ * entry is the recommended template.
+ */
+export function rankTemplates(
   profile: IProfile,
   jobTitle: string | undefined,
-): ITemplateSuggestion {
-  const recentProfileTitle = profile.workHistory?.[0]?.title;
-  const profileClass = classify(recentProfileTitle);
+): ETemplateId[] {
   const jobClass = classify(jobTitle);
+  const profileClass = classify(profile.workHistory?.[0]?.title);
 
-  if (jobClass && profileClass && jobClass === profileClass) {
-    return {
-      id: jobClass,
-      confidence: ETemplateConfidence.High,
-      reason: 'Profile and job description both point to this template.',
-    };
-  }
-  if (jobClass) {
-    return {
-      id: jobClass,
-      confidence: ETemplateConfidence.Medium,
-      reason: 'Job title suggests this template; profile is mixed.',
-    };
-  }
-  if (profileClass) {
-    return {
-      id: profileClass,
-      confidence: ETemplateConfidence.Medium,
-      reason: 'Job title was inconclusive; following profile.',
-    };
-  }
-  return {
-    id: ETemplateId.IcTechnical,
-    confidence: ETemplateConfidence.Low,
-    reason: 'Could not infer from titles; defaulting to IC technical.',
-  };
+  const score = (id: ETemplateId): number =>
+    (jobClass === id ? 2 : 0) + (profileClass === id ? 1 : 0);
+
+  return [...TEMPLATE_ORDER].sort((a, b) => score(b) - score(a));
 }

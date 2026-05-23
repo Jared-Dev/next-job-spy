@@ -6,6 +6,7 @@ import {
   Badge,
   Box,
   Button,
+  Collapse,
   Divider,
   Group,
   Paper,
@@ -17,6 +18,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
+  IconChevronDown,
   IconCopy,
   IconExclamationCircle,
   IconHistory,
@@ -25,7 +27,7 @@ import {
   IconPinned,
   IconPrinter,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { hashCoverLetterInputs } from '@/lib/ai/hashInputs';
 import { postJson } from '@/lib/ai/postJson';
@@ -36,6 +38,7 @@ import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
 import type { IArtifact } from '@/lib/storage/types/IArtifact';
 
 import { ArtifactStamp } from './ArtifactStamp';
+import { DirectiveField, COVER_LETTER_DIRECTIVE_HINTS } from './DirectiveField';
 import { TokenEstimate } from './TokenEstimate';
 import { VerificationNotice } from './VerificationNotice';
 import type { ICoverLetterPanelProps } from './types/ICoverLetterPanelProps';
@@ -56,13 +59,10 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
   const profile = adapter.useProfile();
   const settings = adapter.useSettings();
   const artifacts = adapter.useArtifacts(job.id);
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [artifactOverride, setArtifactOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    adapter.hasApiKey().then(setHasApiKey);
-  }, []);
+  const [directive, setDirective] = useState('');
+  const [directiveOpen, setDirectiveOpen] = useState(false);
 
   const coverLetters = useMemo(
     () => (artifacts ?? []).filter((a) => a.kind === EArtifactKind.CoverLetter),
@@ -94,25 +94,29 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
     ? estimateInputTokens(profile, job.descriptionMd ?? '', resumeContext)
     : 0;
 
-  async function handleGenerate() {
+  async function handleGenerate(force = false) {
     if (!profile) return;
+    const trimmedDirective = directive.trim();
     const inputHash = hashCoverLetterInputs({
       profile,
       jobDescription: job.descriptionMd ?? '',
       jobTitle: job.title,
       resumeContext,
       model,
+      directive: trimmedDirective,
     });
-    const cached = coverLetters.find((a) => a.inputHash === inputHash);
-    if (cached && typeof cached.id === 'number') {
-      setArtifactOverride(cached.id);
-      notifications.show({
-        color: 'indigo',
-        icon: <IconCheck size={18} />,
-        title: 'Using cached cover letter',
-        message: 'Inputs match a previous generation; no tokens spent.',
-      });
-      return;
+    if (!force) {
+      const cached = coverLetters.find((a) => a.inputHash === inputHash);
+      if (cached && typeof cached.id === 'number') {
+        setArtifactOverride(cached.id);
+        notifications.show({
+          color: 'indigo',
+          icon: <IconCheck size={18} />,
+          title: 'Using cached cover letter',
+          message: 'Inputs match a previous generation; no tokens spent.',
+        });
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -126,10 +130,12 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
         },
         tailoredResume: resumeContext || undefined,
         model,
+        directive: trimmedDirective || undefined,
       });
       const id = await adapter.saveArtifact({
         jobId: job.id,
         kind: EArtifactKind.CoverLetter,
+        prompt: trimmedDirective || undefined,
         inputHash,
         content: response.content,
         usage: response.usage,
@@ -155,7 +161,11 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
 
   function openPrint() {
     if (!currentArtifact || typeof currentArtifact.id !== 'number') return;
-    window.open(`/r/${currentArtifact.id}/print`, '_blank', 'noopener,noreferrer');
+    window.open(
+      `/resume/${currentArtifact.id}/print`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
 
   async function copyText() {
@@ -198,17 +208,6 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
             </Anchor>
           </Box>
         </Stack>
-      ) : hasApiKey === false ? (
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            Add your Anthropic API key in Settings to enable generation.
-          </Text>
-          <Box>
-            <Anchor href="/settings" size="sm">
-              Open settings →
-            </Anchor>
-          </Box>
-        </Stack>
       ) : (
         <Stack gap="md">
           <Text size="xs" c="dimmed">
@@ -218,26 +217,49 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
           </Text>
 
           <Group gap="sm" align="flex-end" wrap="wrap">
-            <Tooltip
-              label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
-              withArrow
-              multiline
-              w={240}
-            >
-              <Button
-                onClick={handleGenerate}
-                loading={busy}
-                leftSection={<IconMail size={16} stroke={1.6} />}
+            <Group gap={4} wrap="nowrap">
+              <Tooltip
+                label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
+                withArrow
+                multiline
+                w={240}
               >
-                <Group gap={6} wrap="nowrap">
-                  <span>{currentArtifact ? 'Regenerate' : 'Generate'}</span>
-                  <TokenEstimate
-                    inputTokens={inputTokens}
-                    maxOutputTokens={COVER_LETTER_MAX_OUTPUT}
+                <Button
+                  onClick={() => handleGenerate(currentArtifact != null)}
+                  loading={busy}
+                  leftSection={<IconMail size={16} stroke={1.6} />}
+                >
+                  <Group gap={6} wrap="nowrap">
+                    <span>{currentArtifact ? 'Regenerate' : 'Generate'}</span>
+                    <TokenEstimate
+                      inputTokens={inputTokens}
+                      maxOutputTokens={COVER_LETTER_MAX_OUTPUT}
+                    />
+                  </Group>
+                </Button>
+              </Tooltip>
+              <Tooltip
+                label={directiveOpen ? 'Hide directive' : 'Add a directive'}
+                withArrow
+              >
+                <ActionIcon
+                  size={36}
+                  variant={directiveOpen ? 'filled' : 'default'}
+                  color="indigo"
+                  onClick={() => setDirectiveOpen((o) => !o)}
+                  aria-label="Add a generation directive"
+                >
+                  <IconChevronDown
+                    size={16}
+                    stroke={1.8}
+                    style={{
+                      transform: directiveOpen ? 'rotate(180deg)' : undefined,
+                      transition: 'transform 150ms ease',
+                    }}
                   />
-                </Group>
-              </Button>
-            </Tooltip>
+                </ActionIcon>
+              </Tooltip>
+            </Group>
             {currentArtifact ? (
               <Group gap="xs">
                 <Tooltip label={currentArtifact.pinned ? 'Unpin' : 'Pin'} withArrow>
@@ -272,9 +294,22 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
             ) : null}
           </Group>
 
+          <Collapse expanded={directiveOpen}>
+            <DirectiveField
+              phrases={COVER_LETTER_DIRECTIVE_HINTS}
+              value={directive}
+              onChange={setDirective}
+            />
+          </Collapse>
+
           {currentArtifact ? (
             <>
               <Divider label="Latest version" labelPosition="left" />
+              {currentArtifact.prompt ? (
+                <Text size="xs" c="dimmed">
+                  Directive: {currentArtifact.prompt}
+                </Text>
+              ) : null}
               <Group justify="flex-end">
                 <ArtifactStamp artifact={currentArtifact} />
               </Group>
@@ -332,10 +367,11 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
                     >
                       <Stack gap={0}>
                         <Text size="xs" fw={500}>
-                          {new Date(art.createdAt * 1000).toLocaleString()}
+                          {art.prompt ? art.prompt : 'Generated'}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          {art.pinned ? 'pinned' : 'generated'}
+                          {new Date(art.createdAt * 1000).toLocaleString()}
+                          {art.pinned ? ' · pinned' : ''}
                         </Text>
                       </Stack>
                       <ArtifactStamp artifact={art} compact />

@@ -13,6 +13,7 @@ export const TailorResumeRequestSchema = z.object({
   }),
   templateId: z.nativeEnum(ETemplateId),
   model: z.string().optional(),
+  directive: z.string().optional(),
 });
 
 export interface ITailorResumeRequest extends z.infer<typeof TailorResumeRequestSchema> {}

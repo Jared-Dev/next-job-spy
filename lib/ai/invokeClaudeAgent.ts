@@ -44,6 +44,10 @@ export async function invokeClaudeAgent(
       prompt: params.userPrompt,
       options: {
         systemPrompt: params.systemPrompt,
+        // Document drafting is a writing task, not a reasoning one. Adaptive
+        // thinking would burn thousands of output tokens (the slow, expensive
+        // ones) for no quality gain on this kind of work.
+        thinking: { type: 'disabled' },
         tools: [],
         cwd: process.cwd(),
         ...(params.model ? { model: params.model } : {}),

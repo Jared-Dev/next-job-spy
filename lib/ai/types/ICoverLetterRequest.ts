@@ -12,6 +12,7 @@ export const CoverLetterRequestSchema = z.object({
   }),
   tailoredResume: z.string().optional(),
   model: z.string().optional(),
+  directive: z.string().optional(),
 });
 
 export interface ICoverLetterRequest extends z.infer<typeof CoverLetterRequestSchema> {}

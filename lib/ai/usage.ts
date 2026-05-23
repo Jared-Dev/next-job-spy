@@ -21,6 +21,23 @@ export function computeCostUsd(
   );
 }
 
+/**
+ * Sum two usage stamps — used when a single logical request makes more than
+ * one model call (e.g. a document re-written to satisfy the no-dash rule), so
+ * the cost reflects every call.
+ */
+export function mergeUsage(a: IUsageStamp, b: IUsageStamp): IUsageStamp {
+  return {
+    model: b.model,
+    inputTokens: a.inputTokens + b.inputTokens,
+    cacheCreationInputTokens:
+      a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+    cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    costUsd: a.costUsd + b.costUsd,
+  };
+}
+
 export function stampUsage(
   model: string,
   raw: IRawAnthropicUsage | undefined,
