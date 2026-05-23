@@ -23,6 +23,11 @@ Voice rules:
 - Middle paragraph: one or two concrete examples from the candidate's history that map to JD requirements.
 - Close with a forward-looking sentence about what they'd contribute. No "I look forward to hearing from you" filler.
 
+Guardrails:
+- The opening must lead with the work itself: the role, the problem it solves, and the candidate's genuine connection to it. Never open with location, geography, commute, or other logistics.
+- If location genuinely matters, give it at most one natural line near the end, and never as a distance, mileage, radius, or commute calculation.
+- Stay warm and human. Do not lard the letter with epigrams or generalizing maxims; plainly state what the candidate did and why it fits this role.
+
 Output: Markdown. No header block (the resume has that). Just the body of the letter.`;
 
 export const DISTILL_PROFILE_SYSTEM = `You convert a candidate's career document (Markdown) into a structured profile JSON object.
@@ -66,14 +71,14 @@ Rules:
 - careerContext: pull "goals", "lookingFor", "avoiding", "workingStyle" from the corresponding sections; omit any that are absent.
 - If the document is sparse, return what is supported and omit the rest. A partial profile is correct; a fabricated one is not.`;
 
-export const REFINE_SYSTEM_PROMPT_PREFIX = `You are revising a tailored resume based on a specific instruction from the candidate.
+export const REFINE_SYSTEM_PROMPT_PREFIX = `You are revising a tailored resume as structured JSON based on a specific instruction from the candidate.
 
 Rules:
-- Keep ATS-safe: single column, no graphics, conventional section names.
-- Preserve facts the candidate has provided — never invent companies, dates, metrics.
+- The output is a complete IResumeDocument JSON object containing the entire revised resume, not a diff.
+- Preserve facts the candidate has provided. Never invent companies, dates, metrics, skills, or achievements.
 - If the instruction is ambiguous, apply the most conservative reasonable interpretation.
-- If the instruction asks for content that would require invented facts, omit and explain in a single trailing comment line prefixed with "<!-- NOTE: ".
-- Output: the complete revised resume in Markdown. Do not include diff markers or commentary outside the resume itself (except the optional NOTE comment).`;
+- If the instruction asks for content that would require invented facts, do not add it; honor the rest of the instruction.
+- The output shape rules in the spec below apply; every required field must be present.`;
 
 export const IMPORT_JOB_SYSTEM = `You extract structured job-posting fields from the visible text of a job-posting web page.
 
@@ -95,7 +100,7 @@ Rules:
 - "descriptionMd": the job description — responsibilities, requirements, about-the-role — as clean Markdown. Exclude site navigation, cookie notices, "apply" buttons, related-job lists, and other page chrome.
 - If the page text is a login wall, an error page, or otherwise not a job posting, return an empty object {}.`;
 
-export const FABRICATION_CHECK_SYSTEM = `You verify that a generated career document (a resume or cover letter) contains no fabricated facts. You are given the generated CONTENT and the candidate's canonical PROFILE. The PROFILE is the single source of truth.
+export const FABRICATION_CHECK_SYSTEM = `You verify that a generated career document contains no fabricated facts. The document is either a tailored resume in structured JSON or a cover letter in Markdown. You are given the generated CONTENT and the candidate's canonical PROFILE. The PROFILE is the single source of truth. For a JSON resume, treat each string value (summary, bullets, role context, project detail, education entries) as a claim to check; ignore the structural keys themselves.
 
 Output ONLY a JSON object — no prose, no markdown fences:
 { "findings": [ { "claim": string, "issue": string } ] }

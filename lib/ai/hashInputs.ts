@@ -21,9 +21,10 @@ export function hashTailorInputs(parts: {
   jobTitle: string;
   templateId: string;
   model: string;
+  directive: string;
 }): string {
   return cyrb53(
-    `${parts.templateId}|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${JSON.stringify(parts.profile)}`,
+    `${parts.templateId}|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.directive}|${JSON.stringify(parts.profile)}`,
   );
 }
 
@@ -33,8 +34,9 @@ export function hashCoverLetterInputs(parts: {
   jobTitle: string;
   resumeContext: string;
   model: string;
+  directive: string;
 }): string {
   return cyrb53(
-    `cover|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.resumeContext}|${JSON.stringify(parts.profile)}`,
+    `cover|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.resumeContext}|${parts.directive}|${JSON.stringify(parts.profile)}`,
   );
 }

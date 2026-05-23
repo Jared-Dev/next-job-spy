@@ -340,7 +340,7 @@ export default function PreviewPage() {
 
         <Section
           title="Resume print preview (the headline)"
-          description="A scaled-down render of /r/[artifactId]/print using the ic-technical template's print CSS. Selectable text, ATS-safe, considered typography."
+          description="A scaled-down render of /resume/[artifactId]/print using the ic-technical template's print CSS. Selectable text, ATS-safe, considered typography."
         >
           <Paper p="md" withBorder radius="md" bg="var(--mantine-color-gray-0)">
             <Box style={{ display: 'flex', justifyContent: 'center' }}>
@@ -711,7 +711,7 @@ that cut feature delivery time by 40% across 6 product teams.
 }
 
 /**
- * A scaled-down preview of what /r/[id]/print would render — same CSS, just
+ * A scaled-down preview of what /resume/[id]/print would render — same CSS, just
  * sized to fit a kitchen-sink card. Real print route uses @page Letter rules
  * and removes the rounded border.
  */

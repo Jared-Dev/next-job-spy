@@ -71,7 +71,7 @@ Open <http://localhost:3000>. The `/settings` page confirms AI runs on your Clau
 - **Country inference** — every posting gets a best-effort country code from its location string, so you can filter to US-only (or anywhere else).
 - **Ranking** — score unranked jobs against your profile in batches via Claude Haiku. Gated until your profile has enough signal to make scoring meaningful.
 - **Tailor** — per-job template selection (auto-suggested from profile + JD), generation with prompt-cache markers, conversational refinement, version history with pinning.
-- **Print** — `/r/[artifactId]/print` renders selectable, ATS-safe HTML with each template's own print CSS. The browser's print dialog produces the PDF — no rasterization, real text.
+- **Print** — `/resume/[artifactId]/print` renders selectable, ATS-safe HTML with each template's own print CSS. The browser's print dialog produces the PDF — no rasterization, real text.
 - **Token transparency** — token estimates before a call, exact input/output/cached-read counts stamped on each artifact after. No dollar figures anywhere (see below).
 - **Design preview** — `/preview` (or ⌘K → "Design preview") shows every UI element with mock data.
 

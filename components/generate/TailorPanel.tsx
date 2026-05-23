@@ -6,6 +6,7 @@ import {
   Badge,
   Box,
   Button,
+  Collapse,
   Divider,
   Group,
   Paper,
@@ -18,20 +19,20 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
-  IconCopy,
+  IconChevronDown,
   IconExclamationCircle,
+  IconExternalLink,
   IconHistory,
   IconPin,
   IconPinned,
-  IconPrinter,
   IconSparkles,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { hashTailorInputs } from '@/lib/ai/hashInputs';
 import { postJson } from '@/lib/ai/postJson';
-import { listTemplates } from '@/lib/resume/templates';
-import { suggestTemplate } from '@/lib/resume/selectTemplate';
+import { getTemplate } from '@/lib/resume/templates';
+import { rankTemplates } from '@/lib/resume/selectTemplate';
 import { adapter } from '@/lib/storage';
 import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
 import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
@@ -40,6 +41,7 @@ import type { IArtifact } from '@/lib/storage/types/IArtifact';
 import type { IGenerateResponse } from '@/lib/ai/types/IGenerateResponse';
 
 import { ArtifactStamp } from './ArtifactStamp';
+import { DirectiveField, RESUME_DIRECTIVE_HINTS } from './DirectiveField';
 import { RefinementBar } from './RefinementBar';
 import { TokenEstimate } from './TokenEstimate';
 import { VerificationNotice } from './VerificationNotice';
@@ -58,17 +60,14 @@ export function TailorPanel({ job }: ITailorPanelProps) {
   const profile = adapter.useProfile();
   const settings = adapter.useSettings();
   const artifacts = adapter.useArtifacts(job.id);
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [templateOverride, setTemplateOverride] = useState<ETemplateId | null>(null);
   const [artifactOverride, setArtifactOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [directive, setDirective] = useState('');
+  const [directiveOpen, setDirectiveOpen] = useState(false);
 
-  useEffect(() => {
-    adapter.hasApiKey().then(setHasApiKey);
-  }, []);
-
-  const suggestion = useMemo(
-    () => (profile ? suggestTemplate(profile, job.title) : null),
+  const ranked = useMemo(
+    () => (profile ? rankTemplates(profile, job.title) : []),
     [profile, job.title],
   );
 
@@ -93,7 +92,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
   const templateId =
     templateOverride ??
     (currentArtifact?.templateId as ETemplateId | undefined) ??
-    suggestion?.id ??
+    ranked[0] ??
     ETemplateId.IcTechnical;
 
   const setTemplateId = (id: ETemplateId) => setTemplateOverride(id);
@@ -104,25 +103,29 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     ? estimateInputTokens(profile, job.descriptionMd ?? '')
     : 0;
 
-  async function handleGenerate() {
+  async function handleGenerate(force = false) {
     if (!profile || !templateId) return;
+    const trimmedDirective = directive.trim();
     const inputHash = hashTailorInputs({
       profile,
       jobDescription: job.descriptionMd ?? '',
       jobTitle: job.title,
       templateId,
       model,
+      directive: trimmedDirective,
     });
-    const cached = tailoredArtifacts.find((a) => a.inputHash === inputHash);
-    if (cached && typeof cached.id === 'number') {
-      setCurrentArtifactId(cached.id);
-      notifications.show({
-        color: 'indigo',
-        icon: <IconCheck size={18} />,
-        title: 'Using cached resume',
-        message: 'Inputs match a previous generation; no tokens spent.',
-      });
-      return;
+    if (!force) {
+      const cached = tailoredArtifacts.find((a) => a.inputHash === inputHash);
+      if (cached && typeof cached.id === 'number') {
+        setCurrentArtifactId(cached.id);
+        notifications.show({
+          color: 'indigo',
+          icon: <IconCheck size={18} />,
+          title: 'Using cached resume',
+          message: 'Inputs match a previous generation; no tokens spent.',
+        });
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -136,11 +139,13 @@ export function TailorPanel({ job }: ITailorPanelProps) {
         },
         templateId,
         model,
+        directive: trimmedDirective || undefined,
       });
       const id = await adapter.saveArtifact({
         jobId: job.id,
         kind: EArtifactKind.TailoredResume,
         templateId,
+        prompt: trimmedDirective || undefined,
         inputHash,
         content: response.content,
         usage: response.usage,
@@ -211,20 +216,13 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     await adapter.pinArtifact(currentArtifact.id, !currentArtifact.pinned);
   }
 
-  function openPrint() {
+  function openResume() {
     if (!currentArtifact || typeof currentArtifact.id !== 'number') return;
-    window.open(`/r/${currentArtifact.id}/print`, '_blank', 'noopener,noreferrer');
-  }
-
-  async function copyMarkdown() {
-    if (!currentArtifact) return;
-    await navigator.clipboard.writeText(currentArtifact.content);
-    notifications.show({
-      color: 'teal',
-      icon: <IconCheck size={18} />,
-      title: 'Copied to clipboard',
-      message: 'Markdown is on your clipboard.',
-    });
+    window.open(
+      `/resume/${currentArtifact.id}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
 
   const profileEmpty =
@@ -260,56 +258,65 @@ export function TailorPanel({ job }: ITailorPanelProps) {
             </Anchor>
           </Box>
         </Stack>
-      ) : hasApiKey === false ? (
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            Add your Anthropic API key in Settings to enable tailoring.
-          </Text>
-          <Box>
-            <Anchor href="/settings" size="sm">
-              Open settings →
-            </Anchor>
-          </Box>
-        </Stack>
       ) : (
         <Stack gap="md">
           <Group gap="sm" align="flex-end" wrap="wrap">
             <Select
               label="Template"
-              description={
-                suggestion
-                  ? `Auto-pick: ${suggestion.id} (${suggestion.confidence}). ${suggestion.reason}`
-                  : undefined
-              }
-              data={listTemplates().map((t) => ({
-                value: t.id,
-                label: `${t.label} — ${t.bestFor}`,
-              }))}
+              description="Sorted by fit for this job and your profile; the top option is recommended."
+              data={ranked.map((id) => {
+                const t = getTemplate(id);
+                return { value: t.id, label: `${t.label}: ${t.bestFor}` };
+              })}
               value={templateId ?? ''}
               onChange={(v) => setTemplateId((v as ETemplateId) || ETemplateId.IcTechnical)}
               w={360}
             />
-            <Tooltip
-              label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
-              withArrow
-              multiline
-              w={240}
-            >
-              <Button
-                onClick={handleGenerate}
-                loading={busy && !currentArtifact}
-                disabled={!templateId}
-                leftSection={<IconSparkles size={16} stroke={1.6} />}
+            <Group gap={4} wrap="nowrap">
+              <Tooltip
+                label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
+                withArrow
+                multiline
+                w={240}
               >
-                <Group gap={6} wrap="nowrap">
-                  <span>{currentArtifact ? 'Regenerate' : 'Generate'}</span>
-                  <TokenEstimate
-                    inputTokens={inputTokens}
-                    maxOutputTokens={TAILOR_MAX_OUTPUT}
+                <Button
+                  onClick={() => handleGenerate(currentArtifact != null)}
+                  loading={busy}
+                  disabled={!templateId}
+                  leftSection={<IconSparkles size={16} stroke={1.6} />}
+                >
+                  <Group gap={6} wrap="nowrap">
+                    <span>{currentArtifact ? 'Regenerate' : 'Generate'}</span>
+                    <TokenEstimate
+                      inputTokens={inputTokens}
+                      maxOutputTokens={TAILOR_MAX_OUTPUT}
+                    />
+                  </Group>
+                </Button>
+              </Tooltip>
+              <Tooltip
+                label={directiveOpen ? 'Hide directive' : 'Add a directive'}
+                withArrow
+              >
+                <ActionIcon
+                  size={36}
+                  variant={directiveOpen ? 'filled' : 'default'}
+                  color="indigo"
+                  onClick={() => setDirectiveOpen((o) => !o)}
+                  disabled={!templateId}
+                  aria-label="Add a generation directive"
+                >
+                  <IconChevronDown
+                    size={16}
+                    stroke={1.8}
+                    style={{
+                      transform: directiveOpen ? 'rotate(180deg)' : undefined,
+                      transition: 'transform 150ms ease',
+                    }}
                   />
-                </Group>
-              </Button>
-            </Tooltip>
+                </ActionIcon>
+              </Tooltip>
+            </Group>
             {currentArtifact ? (
               <Group gap="xs">
                 <Tooltip label={currentArtifact.pinned ? 'Unpin' : 'Pin'} withArrow>
@@ -327,55 +334,40 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                   </ActionIcon>
                 </Tooltip>
                 <Button
-                  variant="default"
-                  leftSection={<IconCopy size={16} stroke={1.6} />}
-                  onClick={copyMarkdown}
-                >
-                  Copy
-                </Button>
-                <Button
-                  leftSection={<IconPrinter size={16} stroke={1.6} />}
-                  onClick={openPrint}
+                  leftSection={<IconExternalLink size={16} stroke={1.6} />}
+                  onClick={openResume}
                   variant="light"
                 >
-                  Print view
+                  Open resume
                 </Button>
               </Group>
             ) : null}
           </Group>
 
+          <Collapse expanded={directiveOpen}>
+            <DirectiveField
+              phrases={RESUME_DIRECTIVE_HINTS}
+              value={directive}
+              onChange={setDirective}
+            />
+          </Collapse>
+
           {currentArtifact ? (
             <>
               <Divider label="Latest version" labelPosition="left" />
               <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Stack gap={4}>
+                <Stack gap={2}>
+                  <Text size="xs" c="dimmed">
+                    Template: {currentArtifact.templateId}
+                  </Text>
                   {currentArtifact.prompt ? (
                     <Text size="xs" c="dimmed">
-                      Refinement: <em>{currentArtifact.prompt}</em>
+                      Directive: {currentArtifact.prompt}
                     </Text>
                   ) : null}
-                  <Text size="xs" c="dimmed">
-                    Template: {currentArtifact.templateId ?? '—'}
-                  </Text>
                 </Stack>
                 <ArtifactStamp artifact={currentArtifact} />
               </Group>
-
-              <Paper
-                p="md"
-                withBorder
-                bg="var(--mantine-color-gray-0)"
-                style={{ maxHeight: 460, overflowY: 'auto' }}
-              >
-                <Text
-                  size="sm"
-                  ff="monospace"
-                  style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}
-                >
-                  {currentArtifact.content}
-                </Text>
-              </Paper>
-
               <VerificationNotice artifact={currentArtifact} />
 
               <Divider label="Refine without regenerating from scratch" labelPosition="left" />

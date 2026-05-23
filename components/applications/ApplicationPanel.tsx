@@ -242,7 +242,7 @@ export function ApplicationPanel({ job }: IApplicationPanelProps) {
               onClick={() =>
                 linkedResume &&
                 window.open(
-                  `/r/${linkedResume.id}/print`,
+                  `/resume/${linkedResume.id}/print`,
                   '_blank',
                   'noopener,noreferrer',
                 )
@@ -277,7 +277,7 @@ export function ApplicationPanel({ job }: IApplicationPanelProps) {
               onClick={() =>
                 linkedCover &&
                 window.open(
-                  `/r/${linkedCover.id}/print`,
+                  `/resume/${linkedCover.id}/print`,
                   '_blank',
                   'noopener,noreferrer',
                 )

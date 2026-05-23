@@ -91,7 +91,7 @@ export function ApplicationsPanel({ limit }: IApplicationsPanelProps) {
                 <Group gap={10} wrap="nowrap">
                   {resume ? (
                     <Anchor
-                      href={`/r/${resume.id}/print`}
+                      href={`/resume/${resume.id}/print`}
                       target="_blank"
                       rel="noreferrer"
                       size="xs"
@@ -101,7 +101,7 @@ export function ApplicationsPanel({ limit }: IApplicationsPanelProps) {
                   ) : null}
                   {cover ? (
                     <Anchor
-                      href={`/r/${cover.id}/print`}
+                      href={`/resume/${cover.id}/print`}
                       target="_blank"
                       rel="noreferrer"
                       size="xs"

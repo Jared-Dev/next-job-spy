@@ -21,7 +21,8 @@
     "Apache-2.0 AND LGPL-3.0-or-later",
     "(BSD-2-Clause OR MIT OR Apache-2.0)",
     "(MIT OR CC0-1.0)",
-    "(MIT OR WTFPL)"
+    "(MIT OR WTFPL)",
+    "(MIT AND Zlib)"
   ],
   "deny": [
     "GPL-2.0-only",
