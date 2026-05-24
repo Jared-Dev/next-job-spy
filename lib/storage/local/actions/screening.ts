@@ -262,6 +262,13 @@ interface IDrainResult {
   passed: number;
   screenedOut: number;
   skipped: number;
+  /**
+   * Job ids that THIS drain dropped at the embedding stage. The UI
+   * uses this to play an exit animation on those rows before the
+   * refetch removes them from the list. Empty when the batch
+   * doesn't drop anything (or returns early before scoring).
+   */
+  droppedIds: number[];
 }
 
 /**
@@ -300,7 +307,7 @@ export async function drainEmbeddingQueueAction(
       console.log(
         `[njs:screening:embedding] backpressure: local_queued depth ${localBacklog} >= ${maxBacklog}; pausing embedding`,
       );
-      return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0 };
+      return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
     }
   }
 
@@ -325,7 +332,7 @@ export async function drainEmbeddingQueueAction(
         `[njs:screening:embedding] toggle off; bypassed ${result.changes} jobs to ${nextStatus}`,
       );
     }
-    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0 };
+    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
   }
 
   if (settings.screeningEmbeddingEnabled === undefined) {
@@ -333,7 +340,7 @@ export async function drainEmbeddingQueueAction(
     console.log(
       '[njs:screening:embedding] skipped: user has not been through the first-visit gate',
     );
-    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0 };
+    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
   }
 
   const profileVec = await ensureProfileEmbeddingAction();
@@ -341,7 +348,7 @@ export async function drainEmbeddingQueueAction(
     console.warn(
       '[njs:screening:embedding] skipped: no profile embedding (empty profile or no text)',
     );
-    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0 };
+    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
   }
 
   const threshold = settings.screeningEmbeddingThreshold;
@@ -363,7 +370,7 @@ export async function drainEmbeddingQueueAction(
     .all();
 
   if (queued.length === 0) {
-    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0 };
+    return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
   }
 
   const drainStartedAt = Date.now();
@@ -375,6 +382,7 @@ export async function drainEmbeddingQueueAction(
   let passed = 0;
   let screenedOut = 0;
   let skipped = 0;
+  const droppedIds: number[] = [];
 
   for (const row of queued) {
     try {
@@ -407,8 +415,12 @@ export async function drainEmbeddingQueueAction(
         .run();
 
       embedded += 1;
-      if (didPass) passed += 1;
-      else screenedOut += 1;
+      if (didPass) {
+        passed += 1;
+      } else {
+        screenedOut += 1;
+        droppedIds.push(row.id);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown embedding error';
       console.error(
@@ -430,7 +442,7 @@ export async function drainEmbeddingQueueAction(
   console.log(
     `[njs:screening:embedding] drained ${embedded} in ${elapsed}s (${passed} passed, ${screenedOut} dropped, ${skipped} skipped)`,
   );
-  return { embedded, passed, screenedOut, skipped };
+  return { embedded, passed, screenedOut, skipped, droppedIds };
 }
 
 /**

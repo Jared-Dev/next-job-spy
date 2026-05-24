@@ -35,6 +35,7 @@ import { useAutoTuneGate } from '@/lib/screening/scoring/useAutoTuneGate';
 import { useScreeningStatus } from '@/lib/screening/scoring/ScreeningStatusContext';
 import { adapter } from '@/lib/storage';
 import { ELocalModelVariant } from '@/lib/storage/types/ELocalModelVariant';
+import { EScreenStage } from '@/lib/storage/types/EScreenStage';
 import {
   applyLocalVerdictAction,
   drainEmbeddingQueueAction,
@@ -109,9 +110,17 @@ function isFatalWorkerError(message: string): boolean {
   return FATAL_WORKER_ERROR_PATTERNS.some((p) => lower.includes(p));
 }
 
+/**
+ * Skip the per-row exit animation when a single tick drops more than
+ * this many jobs (typically a fresh-import embedding pass burning down
+ * the backlog). N simultaneous swipes feels noisy; we just refetch and
+ * let the rows disappear. Single rejections still animate.
+ */
+const EXIT_ANIMATION_BATCH_BAIL = 5;
+
 export function LocalScreenDriver() {
   const settings = adapter.useSettings();
-  const { setCurrentLocalJobIds } = useScreeningStatus();
+  const { setCurrentLocalJobIds, markDropped } = useScreeningStatus();
   // The auto-tune gate gives us isSettled. While unsettled we want a
   // single worker: (a) batch_size=1 during learning means N-1 workers
   // are starved anyway; (b) more importantly, spawning N workers
@@ -376,6 +385,13 @@ export function LocalScreenDriver() {
           }
           case 'verdict': {
             await applyLocalVerdictAction(msg.jobId, msg.verdict, msg.reason);
+            // Mark the row as just-dropped BEFORE the refresh fires so
+            // the list merge can keep the row mounted while the exit
+            // animation plays. Single drops always animate (one row at
+            // a time is not noisy).
+            if (msg.verdict === 'reject') {
+              markDropped(msg.jobId, EScreenStage.Local);
+            }
             emitRefresh(REFRESH_EVENTS.Jobs);
             inFlightIdsRef.current.delete(msg.jobId);
             publishInFlight();
@@ -454,7 +470,7 @@ export function LocalScreenDriver() {
           }
         }
       },
-    [dispatchToWorker, publishInFlight, recomputeAggregateState],
+    [dispatchToWorker, markDropped, publishInFlight, recomputeAggregateState],
   );
 
   // Lifecycle: spawn N workers when the user has the local screen
@@ -602,6 +618,16 @@ export function LocalScreenDriver() {
         totalEmbedded += result.embedded;
         totalPassed += result.passed;
         totalScreenedOut += result.screenedOut;
+        // Animate the row exit only when the batch dropped a small
+        // number of jobs. Larger batches (typically a fresh-import
+        // burning down a big backlog) would translate into a wall of
+        // simultaneous swipes; better to just refetch silently.
+        if (
+          result.droppedIds.length > 0 &&
+          result.droppedIds.length <= EXIT_ANIMATION_BATCH_BAIL
+        ) {
+          for (const id of result.droppedIds) markDropped(id, EScreenStage.Embedding);
+        }
         emitRefresh(REFRESH_EVENTS.Jobs);
         try {
           const fresh = await getUnscreenedCountsAction();
@@ -630,7 +656,7 @@ export function LocalScreenDriver() {
       setScanning(false);
       scanningRef.current = false;
     }
-  }, []);
+  }, [markDropped]);
 
   useEffect(() => {
     if (!settings) return;

@@ -83,9 +83,48 @@ a {
   will-change: transform;
 }
 
+/*
+ * Row exit: 200ms red flash + pill-swap window, then 400ms slide-out
+ * and fade. The pill swap is React-controlled; the animation handles
+ * the background flash, opacity, and translate. Held the same 600ms
+ * duration as ROW_EXIT_DURATION_MS in ScreeningStatusContext so the
+ * context-side timer removes the entry exactly when the animation
+ * ends.
+ */
+@keyframes njs-row-exit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    background-color: var(--mantine-color-red-1);
+  }
+  33% {
+    opacity: 1;
+    transform: translateX(0);
+    background-color: var(--mantine-color-red-1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(40px);
+    background-color: transparent;
+  }
+}
+
+.njs-row-exit {
+  animation: njs-row-exit 600ms ease-in forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .njs-pipeline-pulse,
   .njs-pipeline-shimmer {
     animation: none;
+  }
+  /* Reduced-motion: drop the slide and flash, keep just the fade so
+   * the row still visibly leaves rather than vanishing. */
+  .njs-row-exit {
+    animation: none;
+    opacity: 0;
+    transition: opacity 200ms ease-out;
   }
 }

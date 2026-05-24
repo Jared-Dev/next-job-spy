@@ -23,6 +23,7 @@ import { useTransition } from 'react';
 
 import { adapter } from '@/lib/storage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
+import { EScreenStage } from '@/lib/storage/types/EScreenStage';
 
 import { FitScoreRing } from './FitScoreRing';
 import { PipelineStatusBadge } from './PipelineStatusBadge';
@@ -58,8 +59,10 @@ export function JobRow({
   job,
   isScoring = false,
   isLocalScreening = false,
+  droppedAtStage,
 }: IJobRowProps) {
   const [pending, startTransition] = useTransition();
+  const isDropped = droppedAtStage !== undefined;
 
   function update(status: EJobStatus) {
     if (typeof job.id !== 'number') return;
@@ -69,7 +72,12 @@ export function JobRow({
   }
 
   return (
-    <Paper p="md" withBorder>
+    <Paper
+      p="md"
+      withBorder
+      className={isDropped ? 'njs-row-exit' : undefined}
+      aria-hidden={isDropped || undefined}
+    >
       <Group justify="space-between" wrap="nowrap" align="flex-start" gap="md">
         <Group gap="md" wrap="nowrap" align="flex-start" style={{ flex: 1, minWidth: 0 }}>
           <FitScoreRing score={job.fitScore} />
@@ -105,11 +113,19 @@ export function JobRow({
                 </Badge>
               ) : null}
               {statusBadge(job.status)}
-              <PipelineStatusBadge
-                job={job}
-                isScoring={isScoring}
-                isLocalScreening={isLocalScreening}
-              />
+              {isDropped ? (
+                <Badge size="xs" variant="filled" color="red">
+                  {droppedAtStage === EScreenStage.Embedding
+                    ? 'Dropped (embed)'
+                    : 'Dropped'}
+                </Badge>
+              ) : (
+                <PipelineStatusBadge
+                  job={job}
+                  isScoring={isScoring}
+                  isLocalScreening={isLocalScreening}
+                />
+              )}
             </Group>
           </Stack>
         </Group>
