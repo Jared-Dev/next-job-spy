@@ -37,6 +37,13 @@ function parseSourceConfigs(raw: string | undefined): ISourceConfig[] | undefine
   }
 }
 
+function parseBool(raw: string | undefined): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return undefined;
+}
+
 export async function getSettingsAction(): Promise<ISettings> {
   const map = readMap();
   return SettingsSchema.parse({
@@ -52,6 +59,25 @@ export async function getSettingsAction(): Promise<ISettings> {
       : undefined,
     lastRefreshAt: map.get(ESettingKey.LastRefreshAt)
       ? Number(map.get(ESettingKey.LastRefreshAt))
+      : undefined,
+    screeningEmbeddingEnabled: parseBool(map.get(ESettingKey.ScreeningEmbeddingEnabled)),
+    screeningLocalEnabled: parseBool(map.get(ESettingKey.ScreeningLocalEnabled)),
+    screeningEmbeddingThreshold: map.get(ESettingKey.ScreeningEmbeddingThreshold)
+      ? Number(map.get(ESettingKey.ScreeningEmbeddingThreshold))
+      : undefined,
+    screeningLocalModelVariant: map.get(ESettingKey.ScreeningLocalModelVariant),
+    screeningLivenessDays: map.get(ESettingKey.ScreeningLivenessDays)
+      ? Number(map.get(ESettingKey.ScreeningLivenessDays))
+      : undefined,
+    screeningAutoTuneEnabled: parseBool(map.get(ESettingKey.ScreeningAutoTuneEnabled)),
+    screeningEmbeddingBatchSize: map.get(ESettingKey.ScreeningEmbeddingBatchSize)
+      ? Number(map.get(ESettingKey.ScreeningEmbeddingBatchSize))
+      : undefined,
+    screeningAutoTuneMinVerdicts: map.get(ESettingKey.ScreeningAutoTuneMinVerdicts)
+      ? Number(map.get(ESettingKey.ScreeningAutoTuneMinVerdicts))
+      : undefined,
+    screeningLocalParallelism: map.get(ESettingKey.ScreeningLocalParallelism)
+      ? Number(map.get(ESettingKey.ScreeningLocalParallelism))
       : undefined,
   });
 }
@@ -80,6 +106,60 @@ export async function saveSettingsAction(partial: Partial<ISettings>): Promise<v
   }
   if (partial.lastRefreshAt !== undefined) {
     writeOne(ESettingKey.LastRefreshAt, String(partial.lastRefreshAt));
+  }
+  if (partial.screeningEmbeddingEnabled !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningEmbeddingEnabled,
+      partial.screeningEmbeddingEnabled ? 'true' : 'false',
+    );
+  }
+  if (partial.screeningLocalEnabled !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningLocalEnabled,
+      partial.screeningLocalEnabled ? 'true' : 'false',
+    );
+  }
+  if (partial.screeningEmbeddingThreshold !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningEmbeddingThreshold,
+      String(partial.screeningEmbeddingThreshold),
+    );
+  }
+  if (partial.screeningLocalModelVariant !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningLocalModelVariant,
+      partial.screeningLocalModelVariant,
+    );
+  }
+  if (partial.screeningLivenessDays !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningLivenessDays,
+      String(partial.screeningLivenessDays),
+    );
+  }
+  if (partial.screeningAutoTuneEnabled !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningAutoTuneEnabled,
+      partial.screeningAutoTuneEnabled ? 'true' : 'false',
+    );
+  }
+  if (partial.screeningEmbeddingBatchSize !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningEmbeddingBatchSize,
+      String(partial.screeningEmbeddingBatchSize),
+    );
+  }
+  if (partial.screeningAutoTuneMinVerdicts !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningAutoTuneMinVerdicts,
+      String(partial.screeningAutoTuneMinVerdicts),
+    );
+  }
+  if (partial.screeningLocalParallelism !== undefined) {
+    writeOne(
+      ESettingKey.ScreeningLocalParallelism,
+      String(partial.screeningLocalParallelism),
+    );
   }
 }
 

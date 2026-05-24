@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 import { EJobStatus } from './EJobStatus';
+import { EPipelineStatus } from './EPipelineStatus';
+import { EScreenStage } from './EScreenStage';
 import { ESourceId } from './ESourceId';
 
 export const JobSchema = z.object({
@@ -24,6 +26,17 @@ export const JobSchema = z.object({
   fitScore: z.number().min(0).max(100).optional(),
   fitNotes: z.string().optional(),
   status: z.nativeEnum(EJobStatus).default(EJobStatus.New),
+  // Screening cascade, system-driven. The raw `embedding` blob is held
+  // server-side only and not exposed on this client-facing type. All
+  // optional: callers creating a fresh job leave them unset and the DB
+  // default ('scraped') populates `pipelineStatus`; the rowToJob mapper
+  // guarantees a value on read.
+  embeddingScore: z.number().optional(),
+  pipelineStatus: z.nativeEnum(EPipelineStatus).optional(),
+  screenedOutBy: z.nativeEnum(EScreenStage).optional(),
+  screenReason: z.string().optional(),
+  priorityBumpedAt: z.number().int().optional(),
+  livenessCheckedAt: z.number().int().optional(),
 });
 
 export interface IJob extends z.infer<typeof JobSchema> {}

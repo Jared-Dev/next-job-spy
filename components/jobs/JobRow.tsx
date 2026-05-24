@@ -25,6 +25,8 @@ import { adapter } from '@/lib/storage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
 
 import { FitScoreRing } from './FitScoreRing';
+import { PipelineStatusBadge } from './PipelineStatusBadge';
+import { RowPipelineActions } from './RowPipelineActions';
 import type { IJobRowProps } from './types/IJobRowProps';
 
 function statusBadge(status: EJobStatus) {
@@ -52,7 +54,11 @@ function statusBadge(status: EJobStatus) {
   }
 }
 
-export function JobRow({ job }: IJobRowProps) {
+export function JobRow({
+  job,
+  isScoring = false,
+  isLocalScreening = false,
+}: IJobRowProps) {
   const [pending, startTransition] = useTransition();
 
   function update(status: EJobStatus) {
@@ -99,10 +105,16 @@ export function JobRow({ job }: IJobRowProps) {
                 </Badge>
               ) : null}
               {statusBadge(job.status)}
+              <PipelineStatusBadge
+                job={job}
+                isScoring={isScoring}
+                isLocalScreening={isLocalScreening}
+              />
             </Group>
           </Stack>
         </Group>
         <Group gap="xs" wrap="nowrap">
+          <RowPipelineActions job={job} />
           {job.url ? (
             <Tooltip label="Open posting" withArrow>
               <ActionIcon

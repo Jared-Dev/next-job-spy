@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ELocalModelVariant } from './ELocalModelVariant';
 import { EVerificationMode } from './EVerificationMode';
 import { SourceConfigSchema } from './ISourceConfig';
 
@@ -21,6 +22,39 @@ export const SettingsSchema = z.object({
   crossCheckNumbers: z.boolean().default(true),
   /** Unix seconds — last successful refresh-all timestamp. */
   lastRefreshAt: z.number().int().nonnegative().optional(),
+  /**
+   * Stage 2 of the screening cascade: cheap embedding similarity vs profile.
+   * `undefined` means the user has not been through the first-visit gate yet.
+   */
+  screeningEmbeddingEnabled: z.boolean().optional(),
+  /**
+   * Stage 3 of the screening cascade: local LLM reasoning gate in a browser
+   * Web Worker. `undefined` means the user has not been through the gate yet.
+   */
+  screeningLocalEnabled: z.boolean().optional(),
+  /** Cosine threshold for the embedding screen. Default 0.30. */
+  screeningEmbeddingThreshold: z.number().min(0).max(1).default(0.3),
+  /** Local model size/quality trade-off for Stage 3. Default is Stronger;
+   *  most local hardware can handle it and accuracy wins. */
+  screeningLocalModelVariant: z
+    .nativeEnum(ELocalModelVariant)
+    .default(ELocalModelVariant.Stronger),
+  /** Days before re-verifying a posting is still reachable. Default 7. */
+  screeningLivenessDays: z.number().int().min(1).max(90).default(7),
+  /** Auto-tune the embedding threshold and batch size after every
+   *  local verdict. When on, the manual threshold input goes read-only. */
+  screeningAutoTuneEnabled: z.boolean().default(true),
+  /** Dynamic embedding batch size. Auto-tune writes this while learning;
+   *  user-controlled when auto-tune is off. */
+  screeningEmbeddingBatchSize: z.number().int().min(1).max(100).default(25),
+  /** Verdicts auto-tune needs before it can declare convergence and
+   *  open the embedding batch to full size. */
+  screeningAutoTuneMinVerdicts: z.number().int().min(10).max(10_000).default(100),
+  /** Number of parallel local LLM worker instances spawned on /jobs.
+   *  Each worker holds its own engine in memory; total VRAM scales
+   *  roughly linearly. 1 is safest; the UI suggests a higher value
+   *  based on the WebGPU adapter capability and chosen model size. */
+  screeningLocalParallelism: z.number().int().min(1).max(4).default(1),
 });
 
 export interface ISettings extends z.infer<typeof SettingsSchema> {}

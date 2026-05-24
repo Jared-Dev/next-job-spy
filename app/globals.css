@@ -21,3 +21,71 @@ a {
   border: 0;
   display: block;
 }
+
+/*
+ * Pipeline status animations.
+ *
+ * Two motion idioms only:
+ *   .njs-pipeline-pulse:   gentle opacity oscillation for waiting states
+ *                          ("queued for X"). Quiet, easy to ignore.
+ *   .njs-pipeline-shimmer: diagonal gradient sweep for active inference
+ *                          ("Claude is scoring this row"). Catches the
+ *                          eye without being a distraction.
+ * Both are suppressed under prefers-reduced-motion; the static visual
+ * stays correct so meaning never depends on the motion.
+ */
+@keyframes njs-pipeline-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Shimmer uses a transform-based pseudo-element so the animation stays
+ * on the compositor (no Paint per frame, no background-position
+ * recompositing). Inset overlay + overflow:hidden keep it bounded to
+ * the badge. */
+@keyframes njs-pipeline-shimmer {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+.njs-pipeline-pulse {
+  animation: njs-pipeline-pulse 1.6s ease-in-out infinite;
+}
+
+.njs-pipeline-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.njs-pipeline-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(34, 139, 230, 0.3) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  animation: njs-pipeline-shimmer 1.8s linear infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .njs-pipeline-pulse,
+  .njs-pipeline-shimmer {
+    animation: none;
+  }
+}

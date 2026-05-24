@@ -9,6 +9,11 @@ export interface IJobFilters {
   search?: string;
   minFitScore?: number;
   remoteOnly?: boolean;
+  /**
+   * Default behavior hides jobs the cascade dropped (`screened_out` /
+   * `expired`). Set true for the audit UI when sampling false-negatives.
+   */
+  includeScreened?: boolean;
 }
 
 export const UNKNOWN_COUNTRY_TOKEN = 'unknown';
