@@ -5,6 +5,7 @@ import {
   AppShell,
   Box,
   Burger,
+  Container,
   Group,
   NavLink,
   ScrollArea,
@@ -28,7 +29,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { Logo } from '@/components/brand/Logo';
+import { LocalScreenDriver } from '@/components/jobs/LocalScreenDriver';
 import { useAutoRefresh } from '@/lib/jobs/useAutoRefresh';
+import { ScreeningStatusProvider } from '@/lib/screening/scoring/ScreeningStatusContext';
 
 import { LastRefreshChip } from './LastRefreshChip';
 import type { INavItem } from './types/INavItem';
@@ -179,7 +182,21 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       </AppShell.Navbar>
 
       <AppShell.Main style={{ minHeight: `calc(100vh - ${rem(56)})` }}>
-        {children}
+        {/*
+         * ScreeningStatusProvider and LocalScreenDriver live here in
+         * the shell (not inside the /jobs page) so the local LLM
+         * workers persist across navigation. The provider exposes the
+         * set of in-flight job ids so JobsVirtualList can still shimmer
+         * the right rows when the user is on /jobs; LocalScreenDriver
+         * owns the workers and renders a small status card whenever
+         * there is screening activity, regardless of route.
+         */}
+        <ScreeningStatusProvider>
+          <Container size="lg" px={0} w="100%" mb="md">
+            <LocalScreenDriver />
+          </Container>
+          {children}
+        </ScreeningStatusProvider>
       </AppShell.Main>
 
       <Spotlight

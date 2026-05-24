@@ -12,6 +12,32 @@ change. The pnpm version is pinned in `package.json` (`packageManager`); the
 build-script allowlist and `minimumReleaseAge` supply-chain policy live in
 `pnpm-workspace.yaml`. A native dependency must be added to `allowBuilds` there.
 
+## Cross-platform support
+
+The project must run on Windows, macOS, and Linux. Before finishing any change
+that touches scripts, paths, or process invocation, check that nothing you
+added is shell- or OS-specific:
+
+- **Env vars in `package.json` scripts.** `FOO=bar next dev` works in bash but
+  fails on Windows `cmd`. Use `cross-env` (add it as a devDep) for any script
+  that needs an inline env var, or read from `.env.local` / `process.env`
+  instead. Same for `&&` vs `;` — prefer `&&` (works everywhere) or split
+  into separate scripts.
+- **Paths.** Always `path.join` / `path.resolve`; never hardcode `/` or `\`,
+  never assume `/tmp`, `/usr`, `C:\`, or `~`. Use `os.tmpdir()` and
+  `os.homedir()` when needed.
+- **Shebangs and `.sh` scripts.** If you add a script the project invokes
+  directly (not via `node`), it won't run on Windows. Invoke through `node`
+  in `package.json` instead — the way `check-licenses` already does.
+- **Native dependencies.** Confirm prebuilt binaries exist for win32-x64,
+  darwin-x64/arm64, and linux-x64/arm64 (glibc). If a package only ships
+  source and requires a C/C++ toolchain, raise it with the maintainer before
+  adding — Windows contributors will hit build failures.
+- **Platform-specific subpackages.** If a dep ships per-platform optional
+  packages (like `@anthropic-ai/claude-agent-sdk-*`), make sure every
+  supported triple is present in `pnpm-workspace.yaml`'s
+  `minimumReleaseAgeExclude` list so fresh installs don't stall.
+
 ## Dependencies and their licenses
 
 Before adding any dependency, check its license. Next Job Spy is open

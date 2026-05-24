@@ -5,6 +5,7 @@ import {
   Anchor,
   Badge,
   Button,
+  Divider,
   Group,
   NumberInput,
   PasswordInput,
@@ -25,10 +26,17 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, useTransition } from 'react';
 
+import {
+  checkWebGpuCapability,
+  type IGpuCheckResult,
+} from '@/lib/screening/local/gpuCheck';
+import { suggestParallelism } from '@/lib/screening/local/suggestParallelism';
 import { adapter } from '@/lib/storage';
+import { ELocalModelVariant } from '@/lib/storage/types/ELocalModelVariant';
 import { EVerificationMode } from '@/lib/storage/types/EVerificationMode';
 import type { ISettings } from '@/lib/storage/types/ISettings';
 
+import { ScreeningStatsPanel } from './ScreeningStatsPanel';
 import type { ISettingsFormProps } from './types/ISettingsFormProps';
 
 const MODEL_OPTIONS = [
@@ -74,6 +82,34 @@ function SettingsFormInner({
   const [isPending, startTransition] = useTransition();
   const [showKeyInput, setShowKeyInput] = useState(!hasApiKey);
   const [keyPresent, setKeyPresent] = useState(hasApiKey);
+  const [gpu, setGpu] = useState<IGpuCheckResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void checkWebGpuCapability().then((result) => {
+      if (!cancelled) setGpu(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const variantOptions: { value: ELocalModelVariant; label: string }[] = [
+    {
+      value: ELocalModelVariant.Smaller,
+      label:
+        gpu?.status === 'capable_low'
+          ? 'Smaller · ~900MB (recommended for your GPU)'
+          : 'Smaller · ~900MB',
+    },
+    {
+      value: ELocalModelVariant.Stronger,
+      label:
+        gpu?.status === 'capable_high' || gpu === null
+          ? 'Stronger · ~2.3GB (recommended)'
+          : 'Stronger · ~2.3GB',
+    },
+  ];
 
   const form = useForm({
     initialValues: {
@@ -84,6 +120,18 @@ function SettingsFormInner({
       aiImportFallback: settings.aiImportFallback ?? true,
       verificationMode: settings.verificationMode ?? EVerificationMode.Thorough,
       crossCheckNumbers: settings.crossCheckNumbers ?? true,
+      screeningEmbeddingEnabled: settings.screeningEmbeddingEnabled ?? true,
+      screeningLocalEnabled: settings.screeningLocalEnabled ?? true,
+      screeningEmbeddingThreshold:
+        settings.screeningEmbeddingThreshold ?? 0.3,
+      screeningLocalModelVariant:
+        settings.screeningLocalModelVariant ?? ELocalModelVariant.Stronger,
+      screeningAutoTuneEnabled: settings.screeningAutoTuneEnabled ?? true,
+      screeningAutoTuneMinVerdicts:
+        settings.screeningAutoTuneMinVerdicts ?? 100,
+      screeningLocalParallelism: String(
+        settings.screeningLocalParallelism ?? 1,
+      ),
     },
     validate: {
       model: (v) => (v ? null : 'Pick a model'),
@@ -110,6 +158,17 @@ function SettingsFormInner({
               aiImportFallback: values.aiImportFallback,
               verificationMode: values.verificationMode,
               crossCheckNumbers: values.crossCheckNumbers,
+              screeningEmbeddingEnabled: values.screeningEmbeddingEnabled,
+              screeningLocalEnabled: values.screeningLocalEnabled,
+              screeningEmbeddingThreshold: values.screeningEmbeddingThreshold,
+              screeningLocalModelVariant: values.screeningLocalModelVariant,
+              screeningAutoTuneEnabled: values.screeningAutoTuneEnabled,
+              screeningAutoTuneMinVerdicts:
+                values.screeningAutoTuneMinVerdicts,
+              screeningLocalParallelism: Number.parseInt(
+                values.screeningLocalParallelism,
+                10,
+              ),
             });
             notifications.show({
               color: 'teal',
@@ -215,6 +274,101 @@ function SettingsFormInner({
           {...form.getInputProps('crossCheckNumbers', { type: 'checkbox' })}
         />
 
+        <Divider
+          label={
+            <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+              Job screening
+            </Text>
+          }
+          labelPosition="left"
+        />
+
+        <Text size="sm" c="dimmed">
+          Cascade filters that run before Claude scores a job. Each stage is
+          optional and free. See stats below for how much each is filtering.
+        </Text>
+
+        <Switch
+          label="Embedding pre-filter"
+          description="Server-side topical similarity vs your profile, runs at job ingest. Catches obvious wrong-field mismatches. ~33MB model, milliseconds per job."
+          {...form.getInputProps('screeningEmbeddingEnabled', { type: 'checkbox' })}
+        />
+
+        <Switch
+          label="Auto-tune embedding threshold"
+          description="Learns the right threshold from local LLM verdicts. Batch size starts small and grows as the threshold stabilizes; once stable, both update on every verdict. Off = you set the threshold manually."
+          {...form.getInputProps('screeningAutoTuneEnabled', { type: 'checkbox' })}
+        />
+
+        {form.values.screeningAutoTuneEnabled ? (
+          <NumberInput
+            label="Verdicts before auto-tune settles"
+            description="Minimum local verdicts the algorithm needs before it can declare convergence and open the embedding batch to full size. Higher = more conservative; lower = ramps faster but risks declaring 'stable' on thin data. Default 100."
+            min={10}
+            max={10_000}
+            step={10}
+            {...form.getInputProps('screeningAutoTuneMinVerdicts')}
+          />
+        ) : null}
+
+        <NumberInput
+          label={
+            form.values.screeningAutoTuneEnabled ? (
+              <Group gap={6}>
+                <span>Embedding threshold</span>
+                <Badge size="xs" variant="light" color="indigo">
+                  managed by auto-tune
+                </Badge>
+              </Group>
+            ) : (
+              'Embedding threshold'
+            )
+          }
+          description={
+            form.values.screeningAutoTuneEnabled
+              ? "Auto-tune updates this after every local verdict. Turn the toggle off to set it yourself."
+              : "Cosine similarity floor for the embedding screen. Lower = more permissive (more jobs pass through to Claude)."
+          }
+          min={0}
+          max={1}
+          step={0.05}
+          decimalScale={2}
+          fixedDecimalScale
+          disabled={
+            !form.values.screeningEmbeddingEnabled ||
+            form.values.screeningAutoTuneEnabled
+          }
+          {...form.getInputProps('screeningEmbeddingThreshold')}
+        />
+
+        <Switch
+          label="Local LLM screen"
+          description="Browser Web Worker reasoning gate. Runs in the tab while you work, catching misfits embeddings miss (clearance, location, requirements). Runs on your GPU."
+          {...form.getInputProps('screeningLocalEnabled', { type: 'checkbox' })}
+        />
+
+        {form.values.screeningLocalEnabled ? (
+          <Select
+            label="Local model size"
+            description={describeGpuRecommendation(gpu)}
+            data={variantOptions}
+            {...form.getInputProps('screeningLocalModelVariant')}
+          />
+        ) : null}
+
+        {form.values.screeningLocalEnabled ? (
+          <LocalParallelismControl
+            gpu={gpu}
+            variant={form.values.screeningLocalModelVariant}
+            value={form.values.screeningLocalParallelism}
+            onChange={(v) =>
+              form.setFieldValue('screeningLocalParallelism', v)
+            }
+          />
+        ) : null}
+
+        <ScreeningStatsPanel />
+
         <Group justify="flex-end">
           <Button type="submit" loading={isPending}>
             Save settings
@@ -223,6 +377,77 @@ function SettingsFormInner({
       </Stack>
     </form>
   );
+}
+
+function LocalParallelismControl({
+  gpu,
+  variant,
+  value,
+  onChange,
+}: {
+  gpu: IGpuCheckResult | null;
+  variant: ELocalModelVariant;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const suggested = suggestParallelism(gpu, variant);
+  const helperBits: string[] = [
+    `Each worker loads its own copy of the model into GPU memory; more workers = more parallel verdicts, more memory used.`,
+  ];
+  if (gpu?.status === 'capable_high' || gpu?.status === 'capable_low') {
+    helperBits.push(
+      `Detected: ${gpu.vendor ?? 'WebGPU adapter'}${gpu.maxBufferMB ? ` (~${gpu.maxBufferMB}MB max buffer)` : ''}. Suggested: ${suggested}.`,
+    );
+  } else if (gpu?.status === 'unsupported_browser' || gpu?.status === 'no_adapter') {
+    helperBits.push(
+      `WebGPU not available in this browser, so the local screen will not run regardless of this setting.`,
+    );
+  } else {
+    helperBits.push('Probing your GPU...');
+  }
+  helperBits.push(
+    `Larger downloads happen once and are cached, so bandwidth is a one-time cost; consider 1 worker if you are on metered/slow internet and have not loaded the model yet.`,
+  );
+  return (
+    <div>
+      <Text size="sm" fw={500} mb={4}>
+        Parallel local screen workers
+      </Text>
+      <Text size="xs" c="dimmed" mb="xs">
+        {helperBits.join(' ')}
+      </Text>
+      <Group gap="xs" wrap="wrap" align="center">
+        {(['1', '2', '3', '4'] as const).map((n) => (
+          <Button
+            key={n}
+            size="xs"
+            variant={value === n ? 'filled' : 'default'}
+            onClick={() => onChange(n)}
+          >
+            {n}
+            {String(suggested) === n ? (
+              <Text component="span" size="xs" ml={4}>
+                *
+              </Text>
+            ) : null}
+          </Button>
+        ))}
+      </Group>
+    </div>
+  );
+}
+
+function describeGpuRecommendation(gpu: IGpuCheckResult | null): string {
+  if (gpu === null) {
+    return 'Checking your GPU to recommend a size...';
+  }
+  if (gpu.status === 'capable_high') {
+    return `Your GPU looks capable${gpu.maxBufferMB ? ` (${gpu.maxBufferMB}MB max buffer)` : ''}, so Stronger is recommended.`;
+  }
+  if (gpu.status === 'capable_low') {
+    return `Your GPU has limited buffer capacity${gpu.maxBufferMB ? ` (~${gpu.maxBufferMB}MB)` : ''}, so Smaller is recommended; Stronger may fail to load.`;
+  }
+  return 'WebGPU is not available in this browser, so the local screen will not run regardless of the size picked. Defaulting to Stronger.';
 }
 
 function SubscriptionAuthNotice({ keyPresent }: { keyPresent: boolean }) {

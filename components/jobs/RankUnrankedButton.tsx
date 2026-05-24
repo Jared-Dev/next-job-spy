@@ -11,8 +11,10 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { isProfileMeaningful } from '@/lib/profile/isProfileMeaningful';
+import { useAutoTuneGate } from '@/lib/screening/scoring/useAutoTuneGate';
 import { adapter } from '@/lib/storage';
 import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
+import { EPipelineStatus } from '@/lib/storage/types/EPipelineStatus';
 import type { IJob } from '@/lib/storage/types/IJob';
 
 import type { IRankUnrankedButtonProps } from './types/IRankUnrankedButtonProps';
@@ -55,9 +57,21 @@ async function rankBatch(profile: unknown, batch: IJob[]): Promise<IRankResultRo
 
 export function RankUnrankedButton({ jobs }: IRankUnrankedButtonProps) {
   const profile = adapter.useProfile();
+  const gate = useAutoTuneGate();
   const [running, setRunning] = useState(false);
+  const scoringPaused = gate !== null && !gate.isSettled;
 
-  const unranked = jobs.filter((j) => typeof j.fitScore !== 'number' && typeof j.id === 'number');
+  // Only rank jobs that have passed the upstream cascade stages. A job
+  // still in screening (or one the cascade dropped) is not a candidate
+  // for Claude scoring; respecting the cascade keeps the cost story
+  // honest. Jobs with an undefined pipelineStatus fall through as
+  // "ready" so legacy rows (pre-cascade) still get caught.
+  const unranked = jobs.filter((j) => {
+    if (typeof j.fitScore === 'number') return false;
+    if (typeof j.id !== 'number') return false;
+    const status = j.pipelineStatus ?? EPipelineStatus.LocalDone;
+    return status === EPipelineStatus.LocalDone;
+  });
   const count = unranked.length;
   const profileReady = isProfileMeaningful(profile);
 
@@ -133,6 +147,26 @@ export function RankUnrankedButton({ jobs }: IRankUnrankedButtonProps) {
           ? `${ranked} ranked · ${failed} failed (likely rate limit — try again later)`
           : `${ranked} jobs ranked. Sort or filter by fit score to see the best matches.`,
     });
+  }
+
+  if (scoringPaused) {
+    return (
+      <Tooltip
+        label={`Claude scoring is paused while auto-tune learns the embedding threshold (${Math.round((gate?.confidence ?? 0) * 100)}% confident). Turn off auto-tune in Settings to rank manually.`}
+        withArrow
+        multiline
+        w={280}
+      >
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconWand size={14} stroke={1.6} />}
+          disabled
+        >
+          {count} unranked · auto-tune learning
+        </Button>
+      </Tooltip>
+    );
   }
 
   return (

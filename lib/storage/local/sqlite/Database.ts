@@ -36,31 +36,42 @@ CREATE TABLE IF NOT EXISTS profile (
   preferences     TEXT,
   career_context  TEXT,
   source_markdown TEXT,
+  embedding       BLOB,
   updated_at    INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE IF NOT EXISTS job (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  source          TEXT NOT NULL,
-  source_id       TEXT NOT NULL,
-  url             TEXT NOT NULL,
-  title           TEXT NOT NULL,
-  company         TEXT NOT NULL,
-  location        TEXT,
-  country         TEXT,
-  remote          INTEGER,
-  salary_min      INTEGER,
-  salary_max      INTEGER,
-  salary_currency TEXT,
-  posted_at       INTEGER,
-  description_md  TEXT,
-  raw             TEXT,
-  discovered_at   INTEGER NOT NULL DEFAULT (unixepoch()),
-  fit_score       REAL,
-  fit_notes       TEXT,
-  status          TEXT NOT NULL DEFAULT 'new',
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  source              TEXT NOT NULL,
+  source_id           TEXT NOT NULL,
+  url                 TEXT NOT NULL,
+  title               TEXT NOT NULL,
+  company             TEXT NOT NULL,
+  location            TEXT,
+  country             TEXT,
+  remote              INTEGER,
+  salary_min          INTEGER,
+  salary_max          INTEGER,
+  salary_currency     TEXT,
+  posted_at           INTEGER,
+  description_md      TEXT,
+  raw                 TEXT,
+  discovered_at       INTEGER NOT NULL DEFAULT (unixepoch()),
+  fit_score           REAL,
+  fit_notes           TEXT,
+  status              TEXT NOT NULL DEFAULT 'new',
+  embedding           BLOB,
+  embedding_score     REAL,
+  pipeline_status     TEXT NOT NULL DEFAULT 'scraped',
+  screened_out_by     TEXT,
+  screen_reason       TEXT,
+  priority_bumped_at  INTEGER,
+  liveness_checked_at INTEGER,
+  local_judged_at     INTEGER,
   UNIQUE (source, source_id)
 );
+CREATE INDEX IF NOT EXISTS idx_job_pipeline_status ON job(pipeline_status);
+CREATE INDEX IF NOT EXISTS idx_job_priority_bumped_at ON job(priority_bumped_at);
 
 CREATE TABLE IF NOT EXISTS application (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +97,15 @@ CREATE TABLE IF NOT EXISTS artifact (
   created_at          INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS idx_artifact_input_hash ON artifact(input_hash);
+
+CREATE TABLE IF NOT EXISTS screening_audit (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id        INTEGER NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  stage         TEXT NOT NULL,
+  verdict       TEXT NOT NULL,
+  reviewed_at   INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_screening_audit_job ON screening_audit(job_id);
 `;
 
 type TSqlite = Database.Database;
@@ -110,11 +130,47 @@ function migrate(sqlite: TSqlite) {
   const jobCols = sqlite.prepare('PRAGMA table_info(job)').all() as Array<{
     name: string;
   }>;
-  if (!jobCols.some((c) => c.name === 'country')) {
+  const hasJobCol = (name: string) => jobCols.some((c) => c.name === name);
+  if (!hasJobCol('country')) {
     sqlite.exec('ALTER TABLE job ADD COLUMN country TEXT');
   }
   // Idempotent — safe to run on every boot once the column exists.
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_job_country ON job(country)');
+
+  // Screening cascade columns. NOT NULL adds use a DEFAULT so existing rows
+  // get a value; new rows still pick up the default at insert time.
+  if (!hasJobCol('embedding')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN embedding BLOB');
+  }
+  if (!hasJobCol('embedding_score')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN embedding_score REAL');
+  }
+  if (!hasJobCol('pipeline_status')) {
+    sqlite.exec(
+      "ALTER TABLE job ADD COLUMN pipeline_status TEXT NOT NULL DEFAULT 'scraped'",
+    );
+  }
+  if (!hasJobCol('screened_out_by')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN screened_out_by TEXT');
+  }
+  if (!hasJobCol('screen_reason')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN screen_reason TEXT');
+  }
+  if (!hasJobCol('priority_bumped_at')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN priority_bumped_at INTEGER');
+  }
+  if (!hasJobCol('liveness_checked_at')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN liveness_checked_at INTEGER');
+  }
+  if (!hasJobCol('local_judged_at')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN local_judged_at INTEGER');
+  }
+  sqlite.exec(
+    'CREATE INDEX IF NOT EXISTS idx_job_pipeline_status ON job(pipeline_status)',
+  );
+  sqlite.exec(
+    'CREATE INDEX IF NOT EXISTS idx_job_priority_bumped_at ON job(priority_bumped_at)',
+  );
 
   // Backfill country for existing rows where it's null but we have a location.
   const needsBackfill = sqlite
@@ -143,6 +199,9 @@ function migrate(sqlite: TSqlite) {
   }
   if (!profileCols.some((c) => c.name === 'personal_site')) {
     sqlite.exec('ALTER TABLE profile ADD COLUMN personal_site TEXT');
+  }
+  if (!profileCols.some((c) => c.name === 'embedding')) {
+    sqlite.exec('ALTER TABLE profile ADD COLUMN embedding BLOB');
   }
 
   // Migrate skills from string[] to { name, strength }[]. Existing rows stored
@@ -185,6 +244,14 @@ if (!globalThis.nextJobSpyLocalSqlite || !globalThis.nextJobSpyLocalDb) {
   const { sqlite, db } = open();
   globalThis.nextJobSpyLocalSqlite = sqlite;
   globalThis.nextJobSpyLocalDb = db;
+} else {
+  // Connection is cached from an earlier module evaluation (Next dev's
+  // hot reload reuses globals). The schema may have moved on since
+  // then, so we re-run migrate against the live connection.
+  // migrate() is idempotent: PRAGMA table_info gates every ALTER, and
+  // every index uses IF NOT EXISTS. Calling it on every module load
+  // means schema changes take effect without a dev-server restart.
+  migrate(globalThis.nextJobSpyLocalSqlite);
 }
 
 export const sqlite = globalThis.nextJobSpyLocalSqlite!;

@@ -6,6 +6,8 @@ import { db, schema } from '@/lib/storage/local/sqlite/Database';
 import type { IProfile } from '@/lib/storage/types/IProfile';
 import { ProfileSchema } from '@/lib/storage/types/IProfile';
 
+import { invalidateProfileEmbeddingAction } from './screening';
+
 export async function getProfileAction(): Promise<IProfile | null> {
   const row = db.select().from(schema.profile).where(eq(schema.profile.id, 1)).get();
   if (!row) return null;
@@ -57,4 +59,7 @@ export async function saveProfileAction(input: unknown): Promise<void> {
       set: { ...values, id: undefined },
     })
     .run();
+  // Profile text changed → cached embedding is stale. Wipe; the next
+  // screening drain will lazily re-derive it from the new content.
+  await invalidateProfileEmbeddingAction();
 }

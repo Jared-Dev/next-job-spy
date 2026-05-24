@@ -1,8 +1,12 @@
 'use client';
 
 import {
+  ActionIcon,
+  Anchor,
   Chip,
+  Divider,
   Group,
+  HoverCard,
   MultiSelect,
   NumberInput,
   Stack,
@@ -10,13 +14,17 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { IconSearch } from '@tabler/icons-react';
-import { useMemo } from 'react';
+import { IconInfoCircle, IconSearch } from '@tabler/icons-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { adapter } from '@/lib/storage';
 import { COUNTRY_LABELS } from '@/lib/jobs/inferCountry';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import { UNKNOWN_COUNTRY_TOKEN } from '@/lib/storage/types/IJobFilters';
+import {
+  getScreeningStatsAction,
+  type IScreeningStats,
+} from '@/lib/storage/local/actions/screening';
 
 import type { IJobFiltersProps } from './types/IJobFiltersProps';
 
@@ -33,6 +41,20 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
   // Surface only countries actually present in the user's data so the dropdown
   // doesn't bury them in 60 options most of which have zero matches.
   const allJobs = adapter.useJobs();
+
+  // Filter-breakdown stats for the info popover. Refetch when the job
+  // list shifts (cascade ran, ingest landed, audit promoted a row).
+  const [stats, setStats] = useState<IScreeningStats | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getScreeningStatsAction().then((fresh) => {
+      if (!cancelled) setStats(fresh);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [allJobs]);
+
   const countryOptions = useMemo(() => {
     if (!allJobs) return [];
     const seen = new Set<string>();
@@ -58,9 +80,12 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
           onChange={(e) => onChange({ ...value, search: e.currentTarget.value })}
           style={{ flex: 1, maxWidth: 360 }}
         />
-        <Text size="sm" c="dimmed">
-          {totalCount} {totalCount === 1 ? 'job' : 'jobs'}
-        </Text>
+        <Group gap={6} wrap="nowrap">
+          <Text size="sm" c="dimmed">
+            {totalCount} {totalCount === 1 ? 'job' : 'jobs'}
+          </Text>
+          <FilteredOutInfo stats={stats} />
+        </Group>
       </Group>
 
       <Group gap="xs" wrap="wrap" align="center">
@@ -116,5 +141,82 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
         />
       </Group>
     </Stack>
+  );
+}
+
+/**
+ * Info-circle button next to the visible-jobs count. The visible total
+ * excludes anything the cascade dropped or marked expired; this popover
+ * shows that excluded breakdown so the user knows how many jobs are
+ * hidden and why. Links to Settings where the spot-check audit lives.
+ */
+function FilteredOutInfo({ stats }: { stats: IScreeningStats | null }) {
+  if (!stats) return null;
+  const embDropped = stats.embedding.dropped;
+  const localDropped = stats.local.dropped;
+  const expired = stats.expired;
+  const hidden = embDropped + localDropped + expired;
+  if (hidden === 0) return null;
+
+  return (
+    <HoverCard width={300} shadow="md" position="bottom-end" withArrow openDelay={120}>
+      <HoverCard.Target>
+        <ActionIcon
+          variant="subtle"
+          size="sm"
+          color="gray"
+          aria-label={`${hidden} jobs hidden by the cascade. Hover for breakdown.`}
+        >
+          <IconInfoCircle size={16} stroke={1.6} />
+        </ActionIcon>
+      </HoverCard.Target>
+      <HoverCard.Dropdown>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
+            {hidden} hidden by the cascade
+          </Text>
+          <Stack gap={4}>
+            {embDropped > 0 ? (
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">
+                  Dropped by embedding screen
+                </Text>
+                <Text size="xs" fw={500}>
+                  {embDropped}
+                </Text>
+              </Group>
+            ) : null}
+            {localDropped > 0 ? (
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">
+                  Dropped by local screen
+                </Text>
+                <Text size="xs" fw={500}>
+                  {localDropped}
+                </Text>
+              </Group>
+            ) : null}
+            {expired > 0 ? (
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">
+                  Posting expired
+                </Text>
+                <Text size="xs" fw={500}>
+                  {expired}
+                </Text>
+              </Group>
+            ) : null}
+          </Stack>
+          <Divider />
+          <Text size="xs" c="dimmed">
+            Worried about false negatives? Run a spot-check audit from{' '}
+            <Anchor href="/settings" size="xs">
+              Settings
+            </Anchor>{' '}
+            to sample dropped jobs and recalibrate.
+          </Text>
+        </Stack>
+      </HoverCard.Dropdown>
+    </HoverCard>
   );
 }

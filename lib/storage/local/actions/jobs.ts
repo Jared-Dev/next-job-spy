@@ -1,15 +1,22 @@
 'use server';
 
-import { and, desc, eq, gte, inArray, isNull, like, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, like, notInArray, or } from 'drizzle-orm';
 
 import { db, schema } from '@/lib/storage/local/sqlite/Database';
 import type { EJobStatus } from '@/lib/storage/types/EJobStatus';
+import { EPipelineStatus } from '@/lib/storage/types/EPipelineStatus';
+import type { EScreenStage } from '@/lib/storage/types/EScreenStage';
 import type { ESourceId } from '@/lib/storage/types/ESourceId';
 import type { IJob } from '@/lib/storage/types/IJob';
 import {
   UNKNOWN_COUNTRY_TOKEN,
   type IJobFilters,
 } from '@/lib/storage/types/IJobFilters';
+
+import {
+  getInitialPipelineStatusAction,
+  kickEmbeddingDrainAction,
+} from './screening';
 
 function rowToJob(row: typeof schema.job.$inferSelect): IJob {
   return {
@@ -32,11 +39,27 @@ function rowToJob(row: typeof schema.job.$inferSelect): IJob {
     fitScore: row.fitScore ?? undefined,
     fitNotes: row.fitNotes ?? undefined,
     status: row.status as EJobStatus,
+    embeddingScore: row.embeddingScore ?? undefined,
+    pipelineStatus: (row.pipelineStatus as EPipelineStatus) ?? EPipelineStatus.Scraped,
+    screenedOutBy: (row.screenedOutBy as EScreenStage | null) ?? undefined,
+    screenReason: row.screenReason ?? undefined,
+    priorityBumpedAt: row.priorityBumpedAt ?? undefined,
+    livenessCheckedAt: row.livenessCheckedAt ?? undefined,
   };
 }
 
 export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
   const conditions = [];
+  // Hide cascade-dropped jobs from the default view; the audit UI flips
+  // `includeScreened` to sample them.
+  if (!filters?.includeScreened) {
+    conditions.push(
+      notInArray(schema.job.pipelineStatus, [
+        EPipelineStatus.ScreenedOut,
+        EPipelineStatus.Expired,
+      ]),
+    );
+  }
   if (filters?.status && filters.status.length > 0) {
     conditions.push(inArray(schema.job.status, filters.status));
   }
@@ -90,6 +113,7 @@ export async function upsertJobsAction(
 ): Promise<{ inserted: number; updated: number }> {
   let inserted = 0;
   let updated = 0;
+  const initialStatus = await getInitialPipelineStatusAction();
   for (const job of jobs) {
     const existing = db
       .select()
@@ -138,15 +162,22 @@ export async function upsertJobsAction(
           fitScore: job.fitScore ?? null,
           fitNotes: job.fitNotes ?? null,
           status: job.status,
+          pipelineStatus: initialStatus,
         })
         .run();
       inserted += 1;
     }
   }
+  // Kick the embedding drain (fire-and-forget) so ingest stays responsive.
+  // The drain itself respects the toggle (no-op when embedding is disabled).
+  if (inserted > 0) {
+    void kickEmbeddingDrainAction();
+  }
   return { inserted, updated };
 }
 
 export async function createJobAction(job: IJob): Promise<number> {
+  const initialStatus = await getInitialPipelineStatusAction();
   const result = db
     .insert(schema.job)
     .values({
@@ -168,8 +199,12 @@ export async function createJobAction(job: IJob): Promise<number> {
       fitScore: job.fitScore ?? null,
       fitNotes: job.fitNotes ?? null,
       status: job.status,
+      pipelineStatus: initialStatus,
     })
     .run();
+  // Kick the embedding drain (fire-and-forget). Single-job create still
+  // benefits from the screen running before the user opens the job.
+  void kickEmbeddingDrainAction();
   return Number(result.lastInsertRowid);
 }
 
@@ -185,5 +220,11 @@ export async function updateJobFitAction(
   fitScore: number,
   fitNotes: string,
 ): Promise<void> {
-  db.update(schema.job).set({ fitScore, fitNotes }).where(eq(schema.job.id, id)).run();
+  // Scoring is the final cascade stage; recording a score advances the
+  // pipeline to Scored regardless of where the job was. This also lets
+  // a manual Score-now override mark the job done in one shot.
+  db.update(schema.job)
+    .set({ fitScore, fitNotes, pipelineStatus: EPipelineStatus.Scored })
+    .where(eq(schema.job.id, id))
+    .run();
 }

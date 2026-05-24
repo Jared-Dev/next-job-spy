@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type { ICareerContext } from '@/lib/storage/types/ICareerContext';
 import type { IEducationEntry } from '@/lib/storage/types/IEducationEntry';
@@ -32,6 +32,8 @@ export const profile = sqliteTable('profile', {
   preferences: text('preferences', { mode: 'json' }).$type<IPreferences>(),
   careerContext: text('career_context', { mode: 'json' }).$type<ICareerContext>(),
   sourceMarkdown: text('source_markdown'),
+  /** Float32 embedding vector bytes for the screening cascade. See lib/screening/embedding. */
+  embedding: blob('embedding'),
   updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
 
@@ -55,6 +57,30 @@ export const job = sqliteTable('job', {
   fitScore: real('fit_score'),
   fitNotes: text('fit_notes'),
   status: text('status').notNull().default('new'),
+  // Screening cascade. See EPipelineStatus / EScreenStage.
+  // `embedding` is the raw Float32 vector bytes; held server-side only.
+  embedding: blob('embedding'),
+  embeddingScore: real('embedding_score'),
+  pipelineStatus: text('pipeline_status').notNull().default('scraped'),
+  screenedOutBy: text('screened_out_by'),
+  screenReason: text('screen_reason'),
+  priorityBumpedAt: integer('priority_bumped_at'),
+  livenessCheckedAt: integer('liveness_checked_at'),
+  /** Set by applyLocalVerdictAction on both pass and reject. Used to
+   *  distinguish "local screen ran and passed" (LocalDone with this
+   *  set) from "embedding stage bypassed because local was off"
+   *  (LocalDone with this null). */
+  localJudgedAt: integer('local_judged_at'),
+});
+
+export const screeningAudit = sqliteTable('screening_audit', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  jobId: integer('job_id')
+    .notNull()
+    .references(() => job.id, { onDelete: 'cascade' }),
+  stage: text('stage').notNull(),
+  verdict: text('verdict').notNull(),
+  reviewedAt: integer('reviewed_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const application = sqliteTable('application', {
