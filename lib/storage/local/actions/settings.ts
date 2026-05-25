@@ -37,6 +37,22 @@ function parseSourceConfigs(raw: string | undefined): ISourceConfig[] | undefine
   }
 }
 
+function parseStringArray(raw: string | undefined): string[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((v) => typeof v === 'string')
+    ) {
+      return parsed as string[];
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function parseBool(raw: string | undefined): boolean | undefined {
   if (raw === undefined) return undefined;
   if (raw === 'true') return true;
@@ -79,6 +95,7 @@ export async function getSettingsAction(): Promise<ISettings> {
     screeningLocalParallelism: map.get(ESettingKey.ScreeningLocalParallelism)
       ? Number(map.get(ESettingKey.ScreeningLocalParallelism))
       : undefined,
+    allowedLanguages: parseStringArray(map.get(ESettingKey.AllowedLanguages)),
   });
 }
 
@@ -159,6 +176,12 @@ export async function saveSettingsAction(partial: Partial<ISettings>): Promise<v
     writeOne(
       ESettingKey.ScreeningLocalParallelism,
       String(partial.screeningLocalParallelism),
+    );
+  }
+  if (partial.allowedLanguages !== undefined) {
+    writeOne(
+      ESettingKey.AllowedLanguages,
+      JSON.stringify(partial.allowedLanguages),
     );
   }
 }

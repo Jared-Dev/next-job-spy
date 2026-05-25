@@ -19,8 +19,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { adapter } from '@/lib/storage';
 import { COUNTRY_LABELS } from '@/lib/jobs/inferCountry';
+import { languageDisplayName } from '@/lib/jobs/detectLanguage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
-import { UNKNOWN_COUNTRY_TOKEN } from '@/lib/storage/types/IJobFilters';
+import {
+  UNKNOWN_COUNTRY_TOKEN,
+  UNKNOWN_LANGUAGE_TOKEN,
+} from '@/lib/storage/types/IJobFilters';
 import {
   getScreeningStatsAction,
   type IScreeningStats,
@@ -41,6 +45,12 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
   // Surface only countries actually present in the user's data so the dropdown
   // doesn't bury them in 60 options most of which have zero matches.
   const allJobs = adapter.useJobs();
+  const settings = adapter.useSettings();
+  // The language search filter only makes sense when the user has
+  // imported jobs from more than one language. With a single allowed
+  // language at the ingest gate every visible row is in that language,
+  // so a "language" chip would always be a no-op.
+  const showLanguageFilter = (settings?.allowedLanguages?.length ?? 0) > 1;
 
   // Filter-breakdown stats for the info popover. Refetch when the job
   // list shifts (cascade ran, ingest landed, audit promoted a row).
@@ -67,6 +77,21 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
       .sort((a, b) => (COUNTRY_LABELS[a] ?? a).localeCompare(COUNTRY_LABELS[b] ?? b))
       .map((code) => ({ value: code, label: COUNTRY_LABELS[code] ?? code }));
     if (hasUnknown) opts.push({ value: UNKNOWN_COUNTRY_TOKEN, label: '(Unknown)' });
+    return opts;
+  }, [allJobs]);
+
+  const languageOptions = useMemo(() => {
+    if (!allJobs) return [];
+    const seen = new Set<string>();
+    let hasUnknown = false;
+    for (const job of allJobs) {
+      if (job.language) seen.add(job.language);
+      else hasUnknown = true;
+    }
+    const opts = Array.from(seen)
+      .sort((a, b) => languageDisplayName(a).localeCompare(languageDisplayName(b)))
+      .map((code) => ({ value: code, label: languageDisplayName(code) }));
+    if (hasUnknown) opts.push({ value: UNKNOWN_LANGUAGE_TOKEN, label: '(Undetected)' });
     return opts;
   }, [allJobs]);
 
@@ -139,6 +164,23 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
           comboboxProps={{ position: 'bottom-start' }}
           style={{ minWidth: 200, flex: '0 1 280px' }}
         />
+
+        {showLanguageFilter ? (
+          <MultiSelect
+            size="xs"
+            placeholder="Any language"
+            data={languageOptions}
+            value={value.languages ?? []}
+            onChange={(next) =>
+              onChange({ ...value, languages: next.length > 0 ? next : undefined })
+            }
+            searchable
+            clearable
+            maxValues={6}
+            comboboxProps={{ position: 'bottom-start' }}
+            style={{ minWidth: 180, flex: '0 1 240px' }}
+          />
+        ) : null}
       </Group>
     </Stack>
   );
@@ -154,8 +196,9 @@ function FilteredOutInfo({ stats }: { stats: IScreeningStats | null }) {
   if (!stats) return null;
   const embDropped = stats.embedding.dropped;
   const localDropped = stats.local.dropped;
+  const langDropped = stats.languageDropped;
   const expired = stats.expired;
-  const hidden = embDropped + localDropped + expired;
+  const hidden = embDropped + localDropped + langDropped + expired;
   if (hidden === 0) return null;
 
   return (
@@ -193,6 +236,16 @@ function FilteredOutInfo({ stats }: { stats: IScreeningStats | null }) {
                 </Text>
                 <Text size="xs" fw={500}>
                   {localDropped}
+                </Text>
+              </Group>
+            ) : null}
+            {langDropped > 0 ? (
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">
+                  Wrong language
+                </Text>
+                <Text size="xs" fw={500}>
+                  {langDropped}
                 </Text>
               </Group>
             ) : null}

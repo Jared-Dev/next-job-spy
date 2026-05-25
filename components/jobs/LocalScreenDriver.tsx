@@ -80,7 +80,14 @@ type TDriverState =
 type TWorkerPhase = 'loading' | 'ready' | 'screening' | 'error';
 
 const QUEUE_REPOLL_MS = 10_000;
-const BACKLOG_POLL_MS = 5_000;
+/**
+ * Poll cadence for the embedding backlog scanner. Tighter when there's
+ * a known large backlog so we don't wait 5s between scans while burning
+ * down hundreds or thousands of jobs; relaxed once we're caught up.
+ */
+const BACKLOG_POLL_BUSY_MS = 1_000;
+const BACKLOG_POLL_IDLE_MS = 5_000;
+const BACKLOG_BUSY_THRESHOLD = 100;
 
 /**
  * After this many back-to-back per-job errors, give up on a worker
@@ -667,6 +674,7 @@ export function LocalScreenDriver() {
       return;
     }
     let cancelled = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
       try {
         const fresh = await getUnscreenedCountsAction();
@@ -675,15 +683,23 @@ export function LocalScreenDriver() {
         if (fresh.embeddingPending > 0 && !scanningRef.current) {
           await runScan();
         }
+        if (cancelled) return;
+        const nextDelay =
+          fresh.embeddingPending > BACKLOG_BUSY_THRESHOLD
+            ? BACKLOG_POLL_BUSY_MS
+            : BACKLOG_POLL_IDLE_MS;
+        timeoutHandle = setTimeout(() => void tick(), nextDelay);
       } catch {
-        // Polling errors are not fatal.
+        // Polling errors are not fatal; reschedule at the idle cadence.
+        if (!cancelled) {
+          timeoutHandle = setTimeout(() => void tick(), BACKLOG_POLL_IDLE_MS);
+        }
       }
     };
     void tick();
-    const interval = setInterval(() => void tick(), BACKLOG_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timeoutHandle !== null) clearTimeout(timeoutHandle);
     };
   }, [settings, runScan]);
 

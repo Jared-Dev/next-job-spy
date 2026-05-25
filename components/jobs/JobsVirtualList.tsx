@@ -41,40 +41,74 @@ export function JobsVirtualList({ jobs }: IJobsVirtualListProps) {
 
   const { currentLocalJobIds, recentlyDroppedIds } = useScreeningStatus();
 
-  // Position-preserving merge: keep just-dropped rows mounted at
-  // their previous index so the row-exit animation plays in place
-  // rather than the row vanishing the moment the cascade refetch
-  // lands. lastRenderedRef holds the array we passed to the
-  // virtualizer last render, so the merge has access to the row
-  // objects after the parent's `jobs` no longer contains them.
-  const lastRenderedRef = useRef<IJob[]>(jobs);
-  const renderJobs = useMemo<IJob[]>(() => {
-    if (recentlyDroppedIds.size === 0) return jobs;
-    const newById = new Map<number, IJob>();
+  // Position-preserving merge for the exit animation: keep just-
+  // dropped rows mounted at their original position so the row-exit
+  // class plays in place rather than the row jumping or vanishing
+  // when the cascade refetch lands.
+  //
+  // `outgoing` is state (not a ref) so the merge can read it during
+  // render without violating react-hooks/refs. The effect below
+  // snapshots a row into `outgoing` the first render after it's
+  // marked dropped, then drops the entry when the timer in
+  // ScreeningStatusContext removes the id.
+  const [outgoing, setOutgoing] = useState<
+    ReadonlyMap<number, { job: IJob; originalIndex: number }>
+  >(() => new Map());
+
+  // Snapshot rows that just got marked dropped so they survive the
+  // refetch that's about to remove them. This is the canonical
+  // "derive-state-from-props-but-remember-across-a-prop-change" case;
+  // the only alternative would be reading a ref during render, which
+  // the React 19 lint rules also forbid.
+  useEffect(() => {
+    const currentIds = new Set<number>();
     for (const j of jobs) {
-      if (typeof j.id === 'number') newById.set(j.id, j);
+      if (typeof j.id === 'number') currentIds.add(j.id);
     }
-    const prevIds = new Set<number>();
-    const out: IJob[] = [];
-    for (const prev of lastRenderedRef.current) {
-      if (typeof prev.id !== 'number') continue;
-      prevIds.add(prev.id);
-      const fresh = newById.get(prev.id);
-      if (fresh !== undefined) {
-        out.push(fresh);
-      } else if (recentlyDroppedIds.has(prev.id)) {
-        out.push(prev);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOutgoing((prev) => {
+      const next = new Map<number, { job: IJob; originalIndex: number }>();
+      for (const [id, entry] of prev) {
+        if (recentlyDroppedIds.has(id) && !currentIds.has(id)) next.set(id, entry);
       }
-    }
-    for (const j of jobs) {
-      if (typeof j.id === 'number' && !prevIds.has(j.id)) out.push(j);
-    }
-    return out;
+      for (let i = 0; i < jobs.length; i += 1) {
+        const j = jobs[i];
+        if (typeof j.id !== 'number') continue;
+        if (recentlyDroppedIds.has(j.id) && !next.has(j.id)) {
+          next.set(j.id, { job: j, originalIndex: i });
+        }
+      }
+      if (next.size === prev.size) {
+        let same = true;
+        for (const [k, v] of next) {
+          if (prev.get(k) !== v) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return prev;
+      }
+      return next;
+    });
   }, [jobs, recentlyDroppedIds]);
 
-  useEffect(() => {
-    lastRenderedRef.current = renderJobs;
-  }, [renderJobs]);
+  const renderJobs = useMemo<IJob[]>(() => {
+    if (outgoing.size === 0) return jobs;
+    const currentIds = new Set<number>();
+    for (const j of jobs) {
+      if (typeof j.id === 'number') currentIds.add(j.id);
+    }
+    const inserts = [...outgoing.entries()]
+      .filter(([id]) => !currentIds.has(id))
+      .sort((a, b) => a[1].originalIndex - b[1].originalIndex);
+    if (inserts.length === 0) return jobs;
+    const out: IJob[] = [...jobs];
+    for (const [, entry] of inserts) {
+      const pos = Math.min(entry.originalIndex, out.length);
+      out.splice(pos, 0, entry.job);
+    }
+    return out;
+  }, [jobs, outgoing]);
 
   const virtualizer = useWindowVirtualizer({
     count: renderJobs.length,

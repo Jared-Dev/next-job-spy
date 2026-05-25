@@ -114,6 +114,7 @@ interface IScreeningAuditModalProps {
 }
 
 const STAGE_LABEL: Record<EScreenStage, string> = {
+  [EScreenStage.Language]: 'language gate',
   [EScreenStage.Embedding]: 'embedding screen',
   [EScreenStage.Local]: 'local screen',
 };

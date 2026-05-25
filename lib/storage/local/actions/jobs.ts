@@ -2,14 +2,16 @@
 
 import { and, desc, eq, gte, inArray, isNull, like, notInArray, or } from 'drizzle-orm';
 
+import { detectJobLanguage, languageDisplayName } from '@/lib/jobs/detectLanguage';
 import { db, schema } from '@/lib/storage/local/sqlite/Database';
 import type { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import { EPipelineStatus } from '@/lib/storage/types/EPipelineStatus';
-import type { EScreenStage } from '@/lib/storage/types/EScreenStage';
+import { EScreenStage } from '@/lib/storage/types/EScreenStage';
 import type { ESourceId } from '@/lib/storage/types/ESourceId';
 import type { IJob } from '@/lib/storage/types/IJob';
 import {
   UNKNOWN_COUNTRY_TOKEN,
+  UNKNOWN_LANGUAGE_TOKEN,
   type IJobFilters,
 } from '@/lib/storage/types/IJobFilters';
 
@@ -17,6 +19,7 @@ import {
   getInitialPipelineStatusAction,
   kickEmbeddingDrainAction,
 } from './screening';
+import { getSettingsAction } from './settings';
 
 function rowToJob(row: typeof schema.job.$inferSelect): IJob {
   return {
@@ -28,6 +31,7 @@ function rowToJob(row: typeof schema.job.$inferSelect): IJob {
     company: row.company,
     location: row.location ?? undefined,
     country: row.country ?? undefined,
+    language: row.language ?? undefined,
     remote: row.remote ?? undefined,
     salaryMin: row.salaryMin ?? undefined,
     salaryMax: row.salaryMax ?? undefined,
@@ -81,6 +85,18 @@ export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
       );
     }
   }
+  if (filters?.languages && filters.languages.length > 0) {
+    const codes = filters.languages.filter((l) => l !== UNKNOWN_LANGUAGE_TOKEN);
+    const includeUnknown = filters.languages.includes(UNKNOWN_LANGUAGE_TOKEN);
+    const langClauses = [];
+    if (codes.length > 0) langClauses.push(inArray(schema.job.language, codes));
+    if (includeUnknown) langClauses.push(isNull(schema.job.language));
+    if (langClauses.length > 0) {
+      conditions.push(
+        langClauses.length === 1 ? langClauses[0] : or(...langClauses)!,
+      );
+    }
+  }
   if (typeof filters?.minFitScore === 'number') {
     conditions.push(gte(schema.job.fitScore, filters.minFitScore));
   }
@@ -108,12 +124,64 @@ export async function getJobAction(id: number): Promise<IJob | null> {
   return row ? rowToJob(row) : null;
 }
 
+interface ILanguageScreen {
+  language: string | null;
+  pipelineStatus: EPipelineStatus;
+  screenedOutBy: EScreenStage | null;
+  screenReason: string | null;
+}
+
+/**
+ * Decide the initial pipeline state for a freshly-ingested job in light
+ * of the user's language allowlist. Detects language from the posting
+ * text; if a confident detection lands outside the allowlist we drop
+ * the job at the Language stage before paying for embedding or local.
+ * An inconclusive detection (too little text) passes through to the
+ * normal cascade.
+ */
+function screenLanguageForInsert(
+  job: IJob,
+  allowedLanguages: string[] | undefined,
+  defaultStatus: EPipelineStatus,
+): ILanguageScreen {
+  const detected = detectJobLanguage({
+    title: job.title,
+    company: job.company,
+    descriptionMd: job.descriptionMd,
+  });
+  if (detected === undefined) {
+    return {
+      language: null,
+      pipelineStatus: defaultStatus,
+      screenedOutBy: null,
+      screenReason: null,
+    };
+  }
+  const allowed = allowedLanguages ?? ['eng'];
+  if (allowed.length === 0 || allowed.includes(detected)) {
+    return {
+      language: detected,
+      pipelineStatus: defaultStatus,
+      screenedOutBy: null,
+      screenReason: null,
+    };
+  }
+  return {
+    language: detected,
+    pipelineStatus: EPipelineStatus.ScreenedOut,
+    screenedOutBy: EScreenStage.Language,
+    screenReason: `Posting language ${languageDisplayName(detected)} not in your allowed languages`,
+  };
+}
+
 export async function upsertJobsAction(
   jobs: IJob[],
 ): Promise<{ inserted: number; updated: number }> {
   let inserted = 0;
   let updated = 0;
   const initialStatus = await getInitialPipelineStatusAction();
+  const settings = await getSettingsAction();
+  const allowedLanguages = settings.allowedLanguages;
   for (const job of jobs) {
     const existing = db
       .select()
@@ -142,6 +210,7 @@ export async function upsertJobsAction(
         .run();
       updated += 1;
     } else {
+      const langScreen = screenLanguageForInsert(job, allowedLanguages, initialStatus);
       db.insert(schema.job)
         .values({
           source: job.source,
@@ -151,6 +220,7 @@ export async function upsertJobsAction(
           company: job.company,
           location: job.location ?? null,
           country: job.country ?? null,
+          language: langScreen.language,
           remote: job.remote ?? null,
           salaryMin: job.salaryMin ?? null,
           salaryMax: job.salaryMax ?? null,
@@ -162,7 +232,9 @@ export async function upsertJobsAction(
           fitScore: job.fitScore ?? null,
           fitNotes: job.fitNotes ?? null,
           status: job.status,
-          pipelineStatus: initialStatus,
+          pipelineStatus: langScreen.pipelineStatus,
+          screenedOutBy: langScreen.screenedOutBy,
+          screenReason: langScreen.screenReason,
         })
         .run();
       inserted += 1;
@@ -178,6 +250,12 @@ export async function upsertJobsAction(
 
 export async function createJobAction(job: IJob): Promise<number> {
   const initialStatus = await getInitialPipelineStatusAction();
+  const settings = await getSettingsAction();
+  const langScreen = screenLanguageForInsert(
+    job,
+    settings.allowedLanguages,
+    initialStatus,
+  );
   const result = db
     .insert(schema.job)
     .values({
@@ -188,6 +266,7 @@ export async function createJobAction(job: IJob): Promise<number> {
       company: job.company,
       location: job.location ?? null,
       country: job.country ?? null,
+      language: langScreen.language,
       remote: job.remote ?? null,
       salaryMin: job.salaryMin ?? null,
       salaryMax: job.salaryMax ?? null,
@@ -199,7 +278,9 @@ export async function createJobAction(job: IJob): Promise<number> {
       fitScore: job.fitScore ?? null,
       fitNotes: job.fitNotes ?? null,
       status: job.status,
-      pipelineStatus: initialStatus,
+      pipelineStatus: langScreen.pipelineStatus,
+      screenedOutBy: langScreen.screenedOutBy,
+      screenReason: langScreen.screenReason,
     })
     .run();
   // Kick the embedding drain (fire-and-forget). Single-job create still

@@ -30,7 +30,7 @@ const DEFAULT_FILTERS: IJobFilters = {
 const FILTERS_STORAGE_KEY = 'njs:jobs:filters';
 type TPersistedFilters = Pick<
   IJobFilters,
-  'status' | 'remoteOnly' | 'countries' | 'minFitScore'
+  'status' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore'
 >;
 
 function loadFilters(): IJobFilters {
@@ -43,6 +43,7 @@ function loadFilters(): IJobFilters {
       status: parsed.status ?? DEFAULT_FILTERS.status,
       remoteOnly: parsed.remoteOnly,
       countries: parsed.countries,
+      languages: parsed.languages,
       minFitScore: parsed.minFitScore,
     };
   } catch {
@@ -56,6 +57,7 @@ function saveFilters(filters: IJobFilters): void {
     status: filters.status,
     remoteOnly: filters.remoteOnly,
     countries: filters.countries,
+    languages: filters.languages,
     minFitScore: filters.minFitScore,
   };
   try {

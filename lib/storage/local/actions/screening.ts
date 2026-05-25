@@ -288,24 +288,35 @@ export async function drainEmbeddingQueueAction(
   const effectiveLimit =
     limit ?? settings.screeningEmbeddingBatchSize ?? DRAIN_BATCH_SIZE;
 
-  // Backpressure: don't let embedding outpace local. If local_queued
-  // already has more than a small buffer waiting, return early so
-  // local can catch up. Keeps the cascade balanced and means each
-  // batch's verdict gets fed back into auto-tune before the next
-  // batch goes in.
-  if (settings.screeningLocalEnabled === true) {
+  // Backpressure: don't let embedding outpace local while auto-tune
+  // is still learning. The tight loop matters during learning because
+  // every embedding batch's verdict feeds the next threshold update;
+  // letting embedding race ahead would mean threshold recomputes lag
+  // a queue's worth of jobs behind reality.
+  //
+  // Once auto-tune declares the threshold settled (or the user has
+  // turned auto-tune off entirely), there's no reason to hold
+  // embedding back: it is the cheap stage and queueing accepted jobs
+  // up for local is exactly what we want. So we lift the cap in that
+  // mode and let embedding churn through the backlog at full speed.
+  const autoTuneState =
+    settings.screeningAutoTuneEnabled === true
+      ? await readAutoTuneState()
+      : null;
+  const isSettled =
+    autoTuneState === null ||
+    autoTuneState.confidence >= AUTO_TUNE_SETTLED_CONFIDENCE;
+  if (settings.screeningLocalEnabled === true && !isSettled) {
     const localBacklog =
       db
         .select({ value: count() })
         .from(schema.job)
         .where(eq(schema.job.pipelineStatus, EPipelineStatus.LocalQueued))
         .get()?.value ?? 0;
-    // Allow at most ~2 batches' worth of work to be queued. At cold
-    // start batch=1, that's 2; at firehose batch=25, that's 50.
     const maxBacklog = Math.max(4, effectiveLimit * 2);
     if (localBacklog >= maxBacklog) {
       console.log(
-        `[njs:screening:embedding] backpressure: local_queued depth ${localBacklog} >= ${maxBacklog}; pausing embedding`,
+        `[njs:screening:embedding] backpressure: local_queued depth ${localBacklog} >= ${maxBacklog}; pausing embedding (learning)`,
       );
       return { embedded: 0, passed: 0, screenedOut: 0, skipped: 0, droppedIds: [] };
     }
@@ -921,6 +932,12 @@ export interface IScreeningStats {
   };
   /** Postings the liveness check confirmed are no longer reachable. */
   expired: number;
+  /**
+   * Postings dropped at ingest by the language allowlist gate. Not
+   * audited (the detection is deterministic) so this is a single
+   * count rather than the full IStageStats shape.
+   */
+  languageDropped: number;
   /** Suggested embedding threshold from audit data (null when insufficient). */
   suggestedEmbeddingThreshold: number | null;
   /** Live auto-tune state. Null when auto-tune is disabled. */
@@ -957,6 +974,7 @@ export async function getScreeningStatsAction(): Promise<IScreeningStats> {
   let scoredCount = 0;
   let scoredSum = 0;
   let expired = 0;
+  let languageDropped = 0;
 
   for (const r of rows) {
     const ps = r.pipelineStatus as EPipelineStatus;
@@ -1018,6 +1036,13 @@ export async function getScreeningStatsAction(): Promise<IScreeningStats> {
     }
 
     if (ps === EPipelineStatus.Expired) expired += 1;
+
+    if (
+      ps === EPipelineStatus.ScreenedOut &&
+      r.screenedOutBy === EScreenStage.Language
+    ) {
+      languageDropped += 1;
+    }
   }
 
   // Audit aggregates. Pending rows are excluded from totals + rates;
@@ -1027,6 +1052,10 @@ export async function getScreeningStatsAction(): Promise<IScreeningStats> {
     EScreenStage,
     { total: number; correct: number; shouldPass: number; borderline: number }
   > = {
+    // Language stage is deterministic (no audit bucket needed), but
+    // keep the record exhaustive so a stray Language stage row in the
+    // audit table doesn't trip the `if (!auditByStage[stage])` guard.
+    [EScreenStage.Language]: { total: 0, correct: 0, shouldPass: 0, borderline: 0 },
     [EScreenStage.Embedding]: { total: 0, correct: 0, shouldPass: 0, borderline: 0 },
     [EScreenStage.Local]: { total: 0, correct: 0, shouldPass: 0, borderline: 0 },
   };
@@ -1149,6 +1178,7 @@ export async function getScreeningStatsAction(): Promise<IScreeningStats> {
       avgFitScore: scoredCount === 0 ? null : Number((scoredSum / scoredCount).toFixed(1)),
     },
     expired,
+    languageDropped,
     suggestedEmbeddingThreshold,
     autoTune:
       settings.screeningAutoTuneEnabled === true

@@ -124,10 +124,14 @@ export function computeSampleWeight(
 }
 
 /**
- * Batch size scales linearly with confidence. Minimum 1 so we never
- * stop sending work to the embedding stage.
+ * Batch size scales linearly with confidence during learning. Once
+ * confidence crosses SETTLED_CONFIDENCE we snap to MAX_BATCH so the
+ * embedding stage runs at full throughput instead of plateauing at
+ * round(MAX_BATCH * 0.9) = 22. Minimum 1 so we never stop sending
+ * work to the embedding stage.
  */
 export function computeBatchSize(confidence: number): number {
+  if (confidence >= SETTLED_CONFIDENCE) return MAX_BATCH;
   return Math.max(1, Math.round(MAX_BATCH * confidence));
 }
 
