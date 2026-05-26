@@ -69,10 +69,25 @@ function saveFilters(filters: IJobFilters): void {
 }
 
 export default function JobsPage() {
-  const [filters, setFilters] = useState<IJobFilters>(loadFilters);
+  // Initialise with DEFAULT_FILTERS so server-render output matches
+  // client-render output. The persisted values land via a post-mount
+  // effect; trying to read localStorage in the useState initialiser
+  // would diverge from SSR and trip a hydration mismatch on the chip
+  // / switch / pill state.
+  const [filters, setFilters] = useState<IJobFilters>(DEFAULT_FILTERS);
+  const [filtersHydrated, setFiltersHydrated] = useState(false);
   useEffect(() => {
+    // Sync from localStorage on mount. setState-in-effect is the
+    // pattern React docs recommend for reading from browser-only APIs
+    // that aren't available during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilters(loadFilters());
+    setFiltersHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (!filtersHydrated) return;
     saveFilters(filters);
-  }, [filters]);
+  }, [filters, filtersHydrated]);
   const jobs = adapter.useJobs(filters);
   const settings = adapter.useSettings();
   const [gateDismissed, setGateDismissed] = useState(false);

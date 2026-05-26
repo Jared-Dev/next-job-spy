@@ -87,7 +87,11 @@ const QUEUE_REPOLL_MS = 10_000;
  */
 const BACKLOG_POLL_BUSY_MS = 1_000;
 const BACKLOG_POLL_IDLE_MS = 5_000;
+const BACKLOG_POLL_VERY_IDLE_MS = 30_000;
 const BACKLOG_BUSY_THRESHOLD = 100;
+/** After this many consecutive zero-pending ticks, fall to the very-idle
+ *  cadence so a quiet system doesn't keep poking the server every 5s. */
+const VERY_IDLE_AFTER_N_TICKS = 3;
 
 /**
  * After this many back-to-back per-job errors, give up on a worker
@@ -483,10 +487,22 @@ export function LocalScreenDriver() {
   // Lifecycle: spawn N workers when the user has the local screen
   // enabled, with the chosen variant and parallelism. Tear them down
   // when any of those settings change so we always have a fresh set.
+  //
+  // Pull individual fields out so the deps array reads only the bits
+  // that legitimately matter for spawning. Listing `settings` (the
+  // whole object) here would re-run the effect on every saveSettings
+  // call - including unrelated writes like auto-tune threshold
+  // updates - which tears workers down and races the WebGPU adapter
+  // release. Symptom: a transient "Local screen unavailable" banner
+  // after audit promotion or any other settings-touching action.
+  const settingsLoaded = settings !== undefined;
+  const localEnabled = settings?.screeningLocalEnabled;
+  const localVariant = settings?.screeningLocalModelVariant;
+  const localParallelism = settings?.screeningLocalParallelism;
   useEffect(() => {
-    if (!settings) return;
+    if (!settingsLoaded) return;
 
-    if (settings.screeningLocalEnabled !== true) {
+    if (localEnabled !== true) {
       // Toggle is off (or pre-gate). Tear down anything running.
       for (const w of workersRef.current) {
         if (w) w.terminate();
@@ -514,12 +530,11 @@ export function LocalScreenDriver() {
         return;
       }
 
-      const variant =
-        settings.screeningLocalModelVariant ?? ELocalModelVariant.Stronger;
+      const variant = localVariant ?? ELocalModelVariant.Stronger;
       const modelInfo = resolveLocalModel(variant);
       const userParallelism = Math.max(
         1,
-        Math.min(4, settings.screeningLocalParallelism ?? 1),
+        Math.min(4, localParallelism ?? 1),
       );
       // During learning (or while the first gate fetch is still in
       // flight, gate === null) force a single worker: avoids both the
@@ -597,10 +612,10 @@ export function LocalScreenDriver() {
     // poll and re-tear-down workers; the normalised bool only
     // transitions when learning actually settles.
   }, [
-    settings,
-    settings?.screeningLocalEnabled,
-    settings?.screeningLocalModelVariant,
-    settings?.screeningLocalParallelism,
+    settingsLoaded,
+    localEnabled,
+    localVariant,
+    localParallelism,
     gateIsSettled,
     makeMessageHandler,
     publishInFlight,
@@ -675,6 +690,7 @@ export function LocalScreenDriver() {
     }
     let cancelled = false;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveIdleTicks = 0;
     const tick = async () => {
       try {
         const fresh = await getUnscreenedCountsAction();
@@ -684,10 +700,14 @@ export function LocalScreenDriver() {
           await runScan();
         }
         if (cancelled) return;
+        consecutiveIdleTicks =
+          fresh.embeddingPending === 0 ? consecutiveIdleTicks + 1 : 0;
         const nextDelay =
           fresh.embeddingPending > BACKLOG_BUSY_THRESHOLD
             ? BACKLOG_POLL_BUSY_MS
-            : BACKLOG_POLL_IDLE_MS;
+            : consecutiveIdleTicks >= VERY_IDLE_AFTER_N_TICKS
+              ? BACKLOG_POLL_VERY_IDLE_MS
+              : BACKLOG_POLL_IDLE_MS;
         timeoutHandle = setTimeout(() => void tick(), nextDelay);
       } catch {
         // Polling errors are not fatal; reschedule at the idle cadence.
