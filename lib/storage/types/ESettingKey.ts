@@ -39,4 +39,7 @@ export enum ESettingKey {
    *  loads the full model independently; memory cost scales with
    *  this. Range 1-4; default 1 (single worker, safest). */
   ScreeningLocalParallelism = 'screening_local_parallelism',
+  /** ISO 639-3 codes the language gate accepts at ingest. JSON
+   *  array of three-letter strings; default ["eng"]. */
+  AllowedLanguages = 'allowed_languages',
 }

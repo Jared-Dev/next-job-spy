@@ -35,6 +35,7 @@ import { useAutoTuneGate } from '@/lib/screening/scoring/useAutoTuneGate';
 import { useScreeningStatus } from '@/lib/screening/scoring/ScreeningStatusContext';
 import { adapter } from '@/lib/storage';
 import { ELocalModelVariant } from '@/lib/storage/types/ELocalModelVariant';
+import { EScreenStage } from '@/lib/storage/types/EScreenStage';
 import {
   applyLocalVerdictAction,
   drainEmbeddingQueueAction,
@@ -79,7 +80,18 @@ type TDriverState =
 type TWorkerPhase = 'loading' | 'ready' | 'screening' | 'error';
 
 const QUEUE_REPOLL_MS = 10_000;
-const BACKLOG_POLL_MS = 5_000;
+/**
+ * Poll cadence for the embedding backlog scanner. Tighter when there's
+ * a known large backlog so we don't wait 5s between scans while burning
+ * down hundreds or thousands of jobs; relaxed once we're caught up.
+ */
+const BACKLOG_POLL_BUSY_MS = 1_000;
+const BACKLOG_POLL_IDLE_MS = 5_000;
+const BACKLOG_POLL_VERY_IDLE_MS = 30_000;
+const BACKLOG_BUSY_THRESHOLD = 100;
+/** After this many consecutive zero-pending ticks, fall to the very-idle
+ *  cadence so a quiet system doesn't keep poking the server every 5s. */
+const VERY_IDLE_AFTER_N_TICKS = 3;
 
 /**
  * After this many back-to-back per-job errors, give up on a worker
@@ -109,9 +121,17 @@ function isFatalWorkerError(message: string): boolean {
   return FATAL_WORKER_ERROR_PATTERNS.some((p) => lower.includes(p));
 }
 
+/**
+ * Skip the per-row exit animation when a single tick drops more than
+ * this many jobs (typically a fresh-import embedding pass burning down
+ * the backlog). N simultaneous swipes feels noisy; we just refetch and
+ * let the rows disappear. Single rejections still animate.
+ */
+const EXIT_ANIMATION_BATCH_BAIL = 5;
+
 export function LocalScreenDriver() {
   const settings = adapter.useSettings();
-  const { setCurrentLocalJobIds } = useScreeningStatus();
+  const { setCurrentLocalJobIds, markDropped } = useScreeningStatus();
   // The auto-tune gate gives us isSettled. While unsettled we want a
   // single worker: (a) batch_size=1 during learning means N-1 workers
   // are starved anyway; (b) more importantly, spawning N workers
@@ -376,6 +396,13 @@ export function LocalScreenDriver() {
           }
           case 'verdict': {
             await applyLocalVerdictAction(msg.jobId, msg.verdict, msg.reason);
+            // Mark the row as just-dropped BEFORE the refresh fires so
+            // the list merge can keep the row mounted while the exit
+            // animation plays. Single drops always animate (one row at
+            // a time is not noisy).
+            if (msg.verdict === 'reject') {
+              markDropped(msg.jobId, EScreenStage.Local);
+            }
             emitRefresh(REFRESH_EVENTS.Jobs);
             inFlightIdsRef.current.delete(msg.jobId);
             publishInFlight();
@@ -454,16 +481,28 @@ export function LocalScreenDriver() {
           }
         }
       },
-    [dispatchToWorker, publishInFlight, recomputeAggregateState],
+    [dispatchToWorker, markDropped, publishInFlight, recomputeAggregateState],
   );
 
   // Lifecycle: spawn N workers when the user has the local screen
   // enabled, with the chosen variant and parallelism. Tear them down
   // when any of those settings change so we always have a fresh set.
+  //
+  // Pull individual fields out so the deps array reads only the bits
+  // that legitimately matter for spawning. Listing `settings` (the
+  // whole object) here would re-run the effect on every saveSettings
+  // call - including unrelated writes like auto-tune threshold
+  // updates - which tears workers down and races the WebGPU adapter
+  // release. Symptom: a transient "Local screen unavailable" banner
+  // after audit promotion or any other settings-touching action.
+  const settingsLoaded = settings !== undefined;
+  const localEnabled = settings?.screeningLocalEnabled;
+  const localVariant = settings?.screeningLocalModelVariant;
+  const localParallelism = settings?.screeningLocalParallelism;
   useEffect(() => {
-    if (!settings) return;
+    if (!settingsLoaded) return;
 
-    if (settings.screeningLocalEnabled !== true) {
+    if (localEnabled !== true) {
       // Toggle is off (or pre-gate). Tear down anything running.
       for (const w of workersRef.current) {
         if (w) w.terminate();
@@ -491,12 +530,11 @@ export function LocalScreenDriver() {
         return;
       }
 
-      const variant =
-        settings.screeningLocalModelVariant ?? ELocalModelVariant.Stronger;
+      const variant = localVariant ?? ELocalModelVariant.Stronger;
       const modelInfo = resolveLocalModel(variant);
       const userParallelism = Math.max(
         1,
-        Math.min(4, settings.screeningLocalParallelism ?? 1),
+        Math.min(4, localParallelism ?? 1),
       );
       // During learning (or while the first gate fetch is still in
       // flight, gate === null) force a single worker: avoids both the
@@ -574,10 +612,10 @@ export function LocalScreenDriver() {
     // poll and re-tear-down workers; the normalised bool only
     // transitions when learning actually settles.
   }, [
-    settings,
-    settings?.screeningLocalEnabled,
-    settings?.screeningLocalModelVariant,
-    settings?.screeningLocalParallelism,
+    settingsLoaded,
+    localEnabled,
+    localVariant,
+    localParallelism,
     gateIsSettled,
     makeMessageHandler,
     publishInFlight,
@@ -602,6 +640,16 @@ export function LocalScreenDriver() {
         totalEmbedded += result.embedded;
         totalPassed += result.passed;
         totalScreenedOut += result.screenedOut;
+        // Animate the row exit only when the batch dropped a small
+        // number of jobs. Larger batches (typically a fresh-import
+        // burning down a big backlog) would translate into a wall of
+        // simultaneous swipes; better to just refetch silently.
+        if (
+          result.droppedIds.length > 0 &&
+          result.droppedIds.length <= EXIT_ANIMATION_BATCH_BAIL
+        ) {
+          for (const id of result.droppedIds) markDropped(id, EScreenStage.Embedding);
+        }
         emitRefresh(REFRESH_EVENTS.Jobs);
         try {
           const fresh = await getUnscreenedCountsAction();
@@ -630,7 +678,7 @@ export function LocalScreenDriver() {
       setScanning(false);
       scanningRef.current = false;
     }
-  }, []);
+  }, [markDropped]);
 
   useEffect(() => {
     if (!settings) return;
@@ -641,6 +689,8 @@ export function LocalScreenDriver() {
       return;
     }
     let cancelled = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveIdleTicks = 0;
     const tick = async () => {
       try {
         const fresh = await getUnscreenedCountsAction();
@@ -649,15 +699,27 @@ export function LocalScreenDriver() {
         if (fresh.embeddingPending > 0 && !scanningRef.current) {
           await runScan();
         }
+        if (cancelled) return;
+        consecutiveIdleTicks =
+          fresh.embeddingPending === 0 ? consecutiveIdleTicks + 1 : 0;
+        const nextDelay =
+          fresh.embeddingPending > BACKLOG_BUSY_THRESHOLD
+            ? BACKLOG_POLL_BUSY_MS
+            : consecutiveIdleTicks >= VERY_IDLE_AFTER_N_TICKS
+              ? BACKLOG_POLL_VERY_IDLE_MS
+              : BACKLOG_POLL_IDLE_MS;
+        timeoutHandle = setTimeout(() => void tick(), nextDelay);
       } catch {
-        // Polling errors are not fatal.
+        // Polling errors are not fatal; reschedule at the idle cadence.
+        if (!cancelled) {
+          timeoutHandle = setTimeout(() => void tick(), BACKLOG_POLL_IDLE_MS);
+        }
       }
     };
     void tick();
-    const interval = setInterval(() => void tick(), BACKLOG_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timeoutHandle !== null) clearTimeout(timeoutHandle);
     };
   }, [settings, runScan]);
 

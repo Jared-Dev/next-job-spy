@@ -6,6 +6,10 @@ export interface IJobFilters {
   sources?: ESourceId[];
   /** ISO country codes plus the literal "unknown" for jobs with no inferred country. */
   countries?: string[];
+  /** ISO 639-3 language codes plus the literal "unknown" for jobs the
+   *  detector wasn't confident about. Only meaningful when the user
+   *  has more than one allowed language at the ingest gate. */
+  languages?: string[];
   search?: string;
   minFitScore?: number;
   remoteOnly?: boolean;
@@ -17,3 +21,4 @@ export interface IJobFilters {
 }
 
 export const UNKNOWN_COUNTRY_TOKEN = 'unknown';
+export const UNKNOWN_LANGUAGE_TOKEN = 'unknown';

@@ -1,7 +1,7 @@
 'use client';
 
 import { Container, Skeleton, Stack } from '@mantine/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AddJobButton } from '@/components/jobs/AddJobButton';
 import { JobFilters } from '@/components/jobs/JobFilters';
@@ -17,8 +17,77 @@ const DEFAULT_FILTERS: IJobFilters = {
   status: [EJobStatus.New, EJobStatus.Saved, EJobStatus.Applied],
 };
 
+/**
+ * Subset of IJobFilters worth persisting across visits. Skip:
+ *   - `search`     transient query, retyped each session
+ *   - `includeScreened`  audit-only escape hatch, not a default
+ *   - `sources`    not surfaced in the filter UI yet
+ * Persisting the rest avoids the user re-toggling "Remote only"
+ * and re-picking their country every time they open /jobs, which
+ * is especially important because clearing those filters causes
+ * the cascade to score jobs the user never wanted scored.
+ */
+const FILTERS_STORAGE_KEY = 'njs:jobs:filters';
+type TPersistedFilters = Pick<
+  IJobFilters,
+  'status' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore'
+>;
+
+function loadFilters(): IJobFilters {
+  if (typeof window === 'undefined') return DEFAULT_FILTERS;
+  try {
+    const raw = window.localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILTERS;
+    const parsed = JSON.parse(raw) as Partial<TPersistedFilters>;
+    return {
+      status: parsed.status ?? DEFAULT_FILTERS.status,
+      remoteOnly: parsed.remoteOnly,
+      countries: parsed.countries,
+      languages: parsed.languages,
+      minFitScore: parsed.minFitScore,
+    };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
+
+function saveFilters(filters: IJobFilters): void {
+  if (typeof window === 'undefined') return;
+  const payload: TPersistedFilters = {
+    status: filters.status,
+    remoteOnly: filters.remoteOnly,
+    countries: filters.countries,
+    languages: filters.languages,
+    minFitScore: filters.minFitScore,
+  };
+  try {
+    window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Quota or disabled storage; the filter still works for this
+    // session, it just won't persist.
+  }
+}
+
 export default function JobsPage() {
+  // Initialise with DEFAULT_FILTERS so server-render output matches
+  // client-render output. The persisted values land via a post-mount
+  // effect; trying to read localStorage in the useState initialiser
+  // would diverge from SSR and trip a hydration mismatch on the chip
+  // / switch / pill state.
   const [filters, setFilters] = useState<IJobFilters>(DEFAULT_FILTERS);
+  const [filtersHydrated, setFiltersHydrated] = useState(false);
+  useEffect(() => {
+    // Sync from localStorage on mount. setState-in-effect is the
+    // pattern React docs recommend for reading from browser-only APIs
+    // that aren't available during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilters(loadFilters());
+    setFiltersHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (!filtersHydrated) return;
+    saveFilters(filters);
+  }, [filters, filtersHydrated]);
   const jobs = adapter.useJobs(filters);
   const settings = adapter.useSettings();
   const [gateDismissed, setGateDismissed] = useState(false);

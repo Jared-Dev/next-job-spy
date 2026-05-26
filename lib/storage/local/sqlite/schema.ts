@@ -46,6 +46,9 @@ export const job = sqliteTable('job', {
   company: text('company').notNull(),
   location: text('location'),
   country: text('country'),
+  /** ISO 639-3 language code detected from the posting text at ingest.
+   * `null` when detection was inconclusive (e.g., too little text). */
+  language: text('language'),
   remote: integer('remote', { mode: 'boolean' }),
   salaryMin: integer('salary_min'),
   salaryMax: integer('salary_max'),

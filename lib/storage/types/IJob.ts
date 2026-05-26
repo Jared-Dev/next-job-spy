@@ -15,6 +15,10 @@ export const JobSchema = z.object({
   location: z.string().optional(),
   /** ISO 3166-1 alpha-2 country code, inferred at ingest from location. Undefined if ambiguous. */
   country: z.string().length(2).optional(),
+  /** ISO 639-3 language code detected from the posting text at ingest.
+   *  Three letters (e.g., 'eng', 'spa', 'fra'). Undefined when detection
+   *  was inconclusive, typically because there wasn't enough text. */
+  language: z.string().length(3).optional(),
   remote: z.boolean().optional(),
   salaryMin: z.number().int().optional(),
   salaryMax: z.number().int().optional(),

@@ -7,6 +7,7 @@ import {
   Button,
   Divider,
   Group,
+  MultiSelect,
   NumberInput,
   PasswordInput,
   Paper,
@@ -26,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, useTransition } from 'react';
 
+import { COMMON_LANGUAGE_OPTIONS } from '@/lib/jobs/detectLanguage';
 import {
   checkWebGpuCapability,
   type IGpuCheckResult,
@@ -132,6 +134,10 @@ function SettingsFormInner({
       screeningLocalParallelism: String(
         settings.screeningLocalParallelism ?? 1,
       ),
+      allowedLanguages:
+        settings.allowedLanguages && settings.allowedLanguages.length > 0
+          ? settings.allowedLanguages
+          : ['eng'],
     },
     validate: {
       model: (v) => (v ? null : 'Pick a model'),
@@ -169,6 +175,10 @@ function SettingsFormInner({
                 values.screeningLocalParallelism,
                 10,
               ),
+              allowedLanguages:
+                values.allowedLanguages.length > 0
+                  ? values.allowedLanguages
+                  : ['eng'],
             });
             notifications.show({
               color: 'teal',
@@ -287,6 +297,15 @@ function SettingsFormInner({
           Cascade filters that run before Claude scores a job. Each stage is
           optional and free. See stats below for how much each is filtering.
         </Text>
+
+        <MultiSelect
+          label="Allowed languages"
+          description="Postings detected in any other language are dropped at ingest, before embedding or local screening runs against text you can't read. Changes apply to new jobs only; existing rejected jobs stay rejected."
+          data={[...COMMON_LANGUAGE_OPTIONS]}
+          searchable
+          clearable={false}
+          {...form.getInputProps('allowedLanguages')}
+        />
 
         <Switch
           label="Embedding pre-filter"

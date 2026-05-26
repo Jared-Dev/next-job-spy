@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS job (
   company             TEXT NOT NULL,
   location            TEXT,
   country             TEXT,
+  language            TEXT,
   remote              INTEGER,
   salary_min          INTEGER,
   salary_max          INTEGER,
@@ -134,8 +135,12 @@ function migrate(sqlite: TSqlite) {
   if (!hasJobCol('country')) {
     sqlite.exec('ALTER TABLE job ADD COLUMN country TEXT');
   }
+  if (!hasJobCol('language')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN language TEXT');
+  }
   // Idempotent — safe to run on every boot once the column exists.
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_job_country ON job(country)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_job_language ON job(language)');
 
   // Screening cascade columns. NOT NULL adds use a DEFAULT so existing rows
   // get a value; new rows still pick up the default at insert time.

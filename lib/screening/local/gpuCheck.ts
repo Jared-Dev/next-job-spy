@@ -34,7 +34,34 @@ export interface IGpuCheckResult {
  */
 const STRONGER_MIN_MAX_BUFFER_BYTES = 2_000_000_000;
 
+/**
+ * Successful capability detection is cached for the lifetime of the
+ * tab: the GPU isn't going to change underneath us, and re-requesting
+ * an adapter immediately after a worker teardown can transient-fail
+ * (the previous adapter hasn't fully released, so requestAdapter
+ * returns null). The driver re-runs this check whenever settings that
+ * affect worker spawning change; without the cache, every such spawn
+ * risks a spurious "Local screen unavailable" banner. Failures are
+ * NOT cached so a one-off error doesn't lock the user out for the
+ * session.
+ */
+let cachedCapableResult: IGpuCheckResult | null = null;
+let inFlightProbe: Promise<IGpuCheckResult> | null = null;
+
 export async function checkWebGpuCapability(): Promise<IGpuCheckResult> {
+  if (cachedCapableResult !== null) return cachedCapableResult;
+  if (inFlightProbe !== null) return inFlightProbe;
+  inFlightProbe = probeWebGpuCapability().then((result) => {
+    if (result.status === 'capable_high' || result.status === 'capable_low') {
+      cachedCapableResult = result;
+    }
+    inFlightProbe = null;
+    return result;
+  });
+  return inFlightProbe;
+}
+
+async function probeWebGpuCapability(): Promise<IGpuCheckResult> {
   if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
     return {
       status: 'unsupported_browser',

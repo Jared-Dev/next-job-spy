@@ -55,6 +55,15 @@ export const SettingsSchema = z.object({
    *  roughly linearly. 1 is safest; the UI suggests a higher value
    *  based on the WebGPU adapter capability and chosen model size. */
   screeningLocalParallelism: z.number().int().min(1).max(4).default(1),
+  /**
+   * ISO 639-3 codes of languages the user can read. Jobs detected in
+   * any other language are dropped at ingest with EScreenStage.Language
+   * before they reach the embedding stage. Default ['eng']. Setting
+   * this to an empty list disables the language gate entirely.
+   * Changes are not retroactive; previously-rejected jobs stay
+   * rejected unless explicitly re-screened.
+   */
+  allowedLanguages: z.array(z.string().length(3)).default(['eng']),
 });
 
 export interface ISettings extends z.infer<typeof SettingsSchema> {}

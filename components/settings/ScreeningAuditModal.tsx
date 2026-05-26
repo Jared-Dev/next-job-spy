@@ -13,7 +13,6 @@ import {
   Skeleton,
   Stack,
   Text,
-  Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -114,6 +113,7 @@ interface IScreeningAuditModalProps {
 }
 
 const STAGE_LABEL: Record<EScreenStage, string> = {
+  [EScreenStage.Language]: 'language gate',
   [EScreenStage.Embedding]: 'embedding screen',
   [EScreenStage.Local]: 'local screen',
 };
@@ -258,7 +258,7 @@ function EmbeddingAuditModal({
     <Modal
       opened={opened}
       onClose={() => (phase.kind === 'running' ? null : close())}
-      title={<Title order={4}>Audit the embedding screen with the local LLM</Title>}
+      title={<Text fw={700} size="lg">Audit the embedding screen with the local LLM</Text>}
       size="lg"
       centered
     >
@@ -618,7 +618,9 @@ function LocalAuditModal({
       opened={opened}
       onClose={() => (isRunning ? null : close())}
       title={
-        <Title order={4}>Audit the {STAGE_LABEL[EScreenStage.Local]} with Claude</Title>
+        <Text fw={700} size="lg">
+          Audit the {STAGE_LABEL[EScreenStage.Local]} with Claude
+        </Text>
       }
       size="lg"
       centered

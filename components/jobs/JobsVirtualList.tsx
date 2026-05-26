@@ -3,7 +3,7 @@
 import { Alert, Badge, Group, Paper, Text } from '@mantine/core';
 import { IconBrain, IconSparkles } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAutoTuneGate } from '@/lib/screening/scoring/useAutoTuneGate';
 import { useScreeningStatus } from '@/lib/screening/scoring/ScreeningStatusContext';
@@ -39,8 +39,79 @@ export function JobsVirtualList({ jobs }: IJobsVirtualListProps) {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
+  const { currentLocalJobIds, recentlyDroppedIds } = useScreeningStatus();
+
+  // Position-preserving merge for the exit animation: keep just-
+  // dropped rows mounted at their original position so the row-exit
+  // class plays in place rather than the row jumping or vanishing
+  // when the cascade refetch lands.
+  //
+  // `outgoing` is state (not a ref) so the merge can read it during
+  // render without violating react-hooks/refs. The effect below
+  // snapshots a row into `outgoing` the first render after it's
+  // marked dropped, then drops the entry when the timer in
+  // ScreeningStatusContext removes the id.
+  const [outgoing, setOutgoing] = useState<
+    ReadonlyMap<number, { job: IJob; originalIndex: number }>
+  >(() => new Map());
+
+  // Snapshot rows that just got marked dropped so they survive the
+  // refetch that's about to remove them. This is the canonical
+  // "derive-state-from-props-but-remember-across-a-prop-change" case;
+  // the only alternative would be reading a ref during render, which
+  // the React 19 lint rules also forbid.
+  useEffect(() => {
+    const currentIds = new Set<number>();
+    for (const j of jobs) {
+      if (typeof j.id === 'number') currentIds.add(j.id);
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOutgoing((prev) => {
+      const next = new Map<number, { job: IJob; originalIndex: number }>();
+      for (const [id, entry] of prev) {
+        if (recentlyDroppedIds.has(id) && !currentIds.has(id)) next.set(id, entry);
+      }
+      for (let i = 0; i < jobs.length; i += 1) {
+        const j = jobs[i];
+        if (typeof j.id !== 'number') continue;
+        if (recentlyDroppedIds.has(j.id) && !next.has(j.id)) {
+          next.set(j.id, { job: j, originalIndex: i });
+        }
+      }
+      if (next.size === prev.size) {
+        let same = true;
+        for (const [k, v] of next) {
+          if (prev.get(k) !== v) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return prev;
+      }
+      return next;
+    });
+  }, [jobs, recentlyDroppedIds]);
+
+  const renderJobs = useMemo<IJob[]>(() => {
+    if (outgoing.size === 0) return jobs;
+    const currentIds = new Set<number>();
+    for (const j of jobs) {
+      if (typeof j.id === 'number') currentIds.add(j.id);
+    }
+    const inserts = [...outgoing.entries()]
+      .filter(([id]) => !currentIds.has(id))
+      .sort((a, b) => a[1].originalIndex - b[1].originalIndex);
+    if (inserts.length === 0) return jobs;
+    const out: IJob[] = [...jobs];
+    for (const [, entry] of inserts) {
+      const pos = Math.min(entry.originalIndex, out.length);
+      out.splice(pos, 0, entry.job);
+    }
+    return out;
+  }, [jobs, outgoing]);
+
   const virtualizer = useWindowVirtualizer({
-    count: jobs.length,
+    count: renderJobs.length,
     estimateSize: () => ROW_ESTIMATE + ROW_GAP,
     overscan: 6,
     scrollMargin,
@@ -72,7 +143,6 @@ export function JobsVirtualList({ jobs }: IJobsVirtualListProps) {
     onInFlightChange,
   });
 
-  const { currentLocalJobIds } = useScreeningStatus();
   const gate = useAutoTuneGate();
   const scoringPaused = gate !== null && !gate.isSettled;
 
@@ -122,8 +192,12 @@ export function JobsVirtualList({ jobs }: IJobsVirtualListProps) {
           }}
         >
           {virtualItems.map((virtualRow) => {
-            const job = jobs[virtualRow.index];
+            const job = renderJobs[virtualRow.index];
             if (!job) return null;
+            const droppedStage =
+              typeof job.id === 'number'
+                ? recentlyDroppedIds.get(job.id)
+                : undefined;
             return (
               <div
                 key={virtualRow.key}
@@ -147,6 +221,7 @@ export function JobsVirtualList({ jobs }: IJobsVirtualListProps) {
                     typeof job.id === 'number' &&
                     currentLocalJobIds.has(job.id)
                   }
+                  droppedAtStage={droppedStage}
                 />
               </div>
             );

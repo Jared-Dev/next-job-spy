@@ -11,7 +11,6 @@ import {
   Switch,
   Text,
   ThemeIcon,
-  Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCloud, IconCpu, IconExclamationCircle, IconFilter } from '@tabler/icons-react';
@@ -93,7 +92,7 @@ export function ScreeningGateModal({ opened, onSaved }: IScreeningGateModalProps
       closeOnEscape={false}
       size="lg"
       centered
-      title={<Title order={4}>How should we screen jobs?</Title>}
+      title={<Text fw={700} size="lg">How should we screen jobs?</Text>}
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
