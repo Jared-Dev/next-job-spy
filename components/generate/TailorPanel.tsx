@@ -10,7 +10,6 @@ import {
   Divider,
   Group,
   Paper,
-  Select,
   Stack,
   Text,
   Title,
@@ -27,16 +26,14 @@ import {
   IconPinned,
   IconSparkles,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { hashTailorInputs } from '@/lib/ai/hashInputs';
 import { postJson } from '@/lib/ai/postJson';
-import { getTemplate } from '@/lib/resume/templates';
-import { rankTemplates } from '@/lib/resume/selectTemplate';
 import { adapter } from '@/lib/storage';
 import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
 import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 import type { IArtifact } from '@/lib/storage/types/IArtifact';
 import type { IGenerateResponse } from '@/lib/ai/types/IGenerateResponse';
 
@@ -60,16 +57,10 @@ export function TailorPanel({ job }: ITailorPanelProps) {
   const profile = adapter.useProfile();
   const settings = adapter.useSettings();
   const artifacts = adapter.useArtifacts(job.id);
-  const [templateOverride, setTemplateOverride] = useState<ETemplateId | null>(null);
   const [artifactOverride, setArtifactOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [directive, setDirective] = useState('');
   const [directiveOpen, setDirectiveOpen] = useState(false);
-
-  const ranked = useMemo(
-    () => (profile ? rankTemplates(profile, job.title) : []),
-    [profile, job.title],
-  );
 
   const tailoredArtifacts = useMemo(
     () => (artifacts ?? []).filter((a) => a.kind === EArtifactKind.TailoredResume),
@@ -89,13 +80,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     return tailoredArtifacts.find((a) => a.id === currentArtifactId) ?? null;
   }, [tailoredArtifacts, currentArtifactId]);
 
-  const templateId =
-    templateOverride ??
-    (currentArtifact?.templateId as ETemplateId | undefined) ??
-    ranked[0] ??
-    ETemplateId.IcTechnical;
-
-  const setTemplateId = (id: ETemplateId) => setTemplateOverride(id);
   const setCurrentArtifactId = (id: number) => setArtifactOverride(id);
 
   const model = settings?.aiModel ?? EAnthropicModel.Sonnet46;
@@ -104,13 +88,12 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     : 0;
 
   async function handleGenerate(force = false) {
-    if (!profile || !templateId) return;
+    if (!profile) return;
     const trimmedDirective = directive.trim();
     const inputHash = hashTailorInputs({
       profile,
       jobDescription: job.descriptionMd ?? '',
       jobTitle: job.title,
-      templateId,
       model,
       directive: trimmedDirective,
     });
@@ -137,14 +120,12 @@ export function TailorPanel({ job }: ITailorPanelProps) {
           location: job.location,
           description: job.descriptionMd ?? '',
         },
-        templateId,
         model,
         directive: trimmedDirective || undefined,
       });
       const id = await adapter.saveArtifact({
         jobId: job.id,
         kind: EArtifactKind.TailoredResume,
-        templateId,
         prompt: trimmedDirective || undefined,
         inputHash,
         content: response.content,
@@ -165,7 +146,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
   }
 
   async function handleRefine(instruction: string) {
-    if (!profile || !templateId || !currentArtifact) return;
+    if (!profile || !currentArtifact) return;
     setBusy(true);
     try {
       const response = await postJson<IGenerateResponse>('/api/ai/refine-resume', {
@@ -176,7 +157,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
           location: job.location,
           description: job.descriptionMd ?? '',
         },
-        templateId,
         baseContent: currentArtifact.content,
         instruction,
         scope: 'whole',
@@ -186,7 +166,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
         jobId: job.id,
         parentArtifactId: currentArtifact.id,
         kind: EArtifactKind.TailoredResume,
-        templateId,
         prompt: instruction,
         content: response.content,
         usage: response.usage,
@@ -216,15 +195,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
     await adapter.pinArtifact(currentArtifact.id, !currentArtifact.pinned);
   }
 
-  function openResume() {
-    if (!currentArtifact || typeof currentArtifact.id !== 'number') return;
-    window.open(
-      `/resume/${currentArtifact.id}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
-  }
-
   const profileEmpty =
     !profile ||
     (!profile.fullName && (profile.workHistory?.length ?? 0) === 0);
@@ -249,7 +219,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
       {profileEmpty ? (
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            Fill in your profile first — the tailoring engine generates from your
+            Fill in your profile first. The tailoring engine generates from your
             canonical career data.
           </Text>
           <Box>
@@ -261,17 +231,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
       ) : (
         <Stack gap="md">
           <Group gap="sm" align="flex-end" wrap="wrap">
-            <Select
-              label="Template"
-              description="Sorted by fit for this job and your profile; the top option is recommended."
-              data={ranked.map((id) => {
-                const t = getTemplate(id);
-                return { value: t.id, label: `${t.label}: ${t.bestFor}` };
-              })}
-              value={templateId ?? ''}
-              onChange={(v) => setTemplateId((v as ETemplateId) || ETemplateId.IcTechnical)}
-              w={360}
-            />
             <Group gap={4} wrap="nowrap">
               <Tooltip
                 label="Estimated tokens. Actual cost is stamped on the artifact when the call completes."
@@ -282,7 +241,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                 <Button
                   onClick={() => handleGenerate(currentArtifact != null)}
                   loading={busy}
-                  disabled={!templateId}
                   leftSection={<IconSparkles size={16} stroke={1.6} />}
                 >
                   <Group gap={6} wrap="nowrap">
@@ -303,7 +261,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                   variant={directiveOpen ? 'filled' : 'default'}
                   color="indigo"
                   onClick={() => setDirectiveOpen((o) => !o)}
-                  disabled={!templateId}
                   aria-label="Add a generation directive"
                 >
                   <IconChevronDown
@@ -334,8 +291,10 @@ export function TailorPanel({ job }: ITailorPanelProps) {
                   </ActionIcon>
                 </Tooltip>
                 <Button
+                  component={Link}
+                  href={`/resume/${currentArtifact.id}`}
+                  scroll={false}
                   leftSection={<IconExternalLink size={16} stroke={1.6} />}
-                  onClick={openResume}
                   variant="light"
                 >
                   Open resume
@@ -357,9 +316,6 @@ export function TailorPanel({ job }: ITailorPanelProps) {
               <Divider label="Latest version" labelPosition="left" />
               <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={2}>
-                  <Text size="xs" c="dimmed">
-                    Template: {currentArtifact.templateId}
-                  </Text>
                   {currentArtifact.prompt ? (
                     <Text size="xs" c="dimmed">
                       Directive: {currentArtifact.prompt}
@@ -371,7 +327,7 @@ export function TailorPanel({ job }: ITailorPanelProps) {
               <VerificationNotice artifact={currentArtifact} />
 
               <Divider label="Refine without regenerating from scratch" labelPosition="left" />
-              <RefinementBar onSubmit={handleRefine} busy={busy} disabled={!templateId} />
+              <RefinementBar onSubmit={handleRefine} busy={busy} />
             </>
           ) : null}
 

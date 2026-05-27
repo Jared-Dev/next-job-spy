@@ -26,6 +26,8 @@ export type TProfileFormValues = {
     field: string;
     startDate: string;
     endDate: string;
+    gpa: string;
+    gpaScale: string;
     notes: string;
   }[];
   skills: { name: string; strength: ESkillStrength }[];

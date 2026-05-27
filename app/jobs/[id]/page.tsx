@@ -30,6 +30,7 @@ import { ApplicationPanel } from '@/components/applications/ApplicationPanel';
 import { CoverLetterPanel } from '@/components/generate/CoverLetterPanel';
 import { TailorPanel } from '@/components/generate/TailorPanel';
 import { FitScoreRing } from '@/components/jobs/FitScoreRing';
+import { MissingSkillsPanel } from '@/components/skills/MissingSkillsPanel';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { markdownToHtml } from '@/lib/resume/markdownToHtml';
 import { adapter } from '@/lib/storage';
@@ -159,6 +160,10 @@ export default function JobDetailPage({
           </Stack>
         </Group>
       </Paper>
+
+      <Box mb="lg">
+        <MissingSkillsPanel job={job} />
+      </Box>
 
       <Box mb="lg">
         <TailorPanel job={job} />

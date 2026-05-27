@@ -20,24 +20,26 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE TABLE IF NOT EXISTS profile (
-  id            INTEGER PRIMARY KEY,
-  full_name     TEXT,
-  headline      TEXT,
-  email         TEXT,
-  phone         TEXT,
-  location      TEXT,
-  personal_site TEXT,
-  links         TEXT,
-  summary       TEXT,
+  id              INTEGER PRIMARY KEY,
+  full_name       TEXT,
+  headline        TEXT,
+  email           TEXT,
+  phone           TEXT,
+  location        TEXT,
+  personal_site   TEXT,
+  links           TEXT,
+  summary         TEXT,
   work_history    TEXT,
   education       TEXT,
   skills          TEXT,
   achievements    TEXT,
+  for_fun         TEXT,
+  dismissed_skills TEXT,
   preferences     TEXT,
   career_context  TEXT,
   source_markdown TEXT,
   embedding       BLOB,
-  updated_at    INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at      INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE IF NOT EXISTS job (
@@ -69,6 +71,7 @@ CREATE TABLE IF NOT EXISTS job (
   priority_bumped_at  INTEGER,
   liveness_checked_at INTEGER,
   local_judged_at     INTEGER,
+  desired_skills      TEXT,
   UNIQUE (source, source_id)
 );
 CREATE INDEX IF NOT EXISTS idx_job_pipeline_status ON job(pipeline_status);
@@ -89,10 +92,10 @@ CREATE TABLE IF NOT EXISTS artifact (
   application_id      INTEGER REFERENCES application(id) ON DELETE CASCADE,
   parent_artifact_id  INTEGER,
   kind                TEXT NOT NULL,
-  template_id         TEXT,
   prompt              TEXT,
   input_hash          TEXT,
   content             TEXT NOT NULL,
+  filename            TEXT,
   usage               TEXT,
   pinned              INTEGER,
   created_at          INTEGER NOT NULL DEFAULT (unixepoch())
@@ -170,6 +173,9 @@ function migrate(sqlite: TSqlite) {
   if (!hasJobCol('local_judged_at')) {
     sqlite.exec('ALTER TABLE job ADD COLUMN local_judged_at INTEGER');
   }
+  if (!hasJobCol('desired_skills')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN desired_skills TEXT');
+  }
   sqlite.exec(
     'CREATE INDEX IF NOT EXISTS idx_job_pipeline_status ON job(pipeline_status)',
   );
@@ -207,6 +213,17 @@ function migrate(sqlite: TSqlite) {
   }
   if (!profileCols.some((c) => c.name === 'embedding')) {
     sqlite.exec('ALTER TABLE profile ADD COLUMN embedding BLOB');
+  }
+  if (!profileCols.some((c) => c.name === 'for_fun')) {
+    sqlite.exec('ALTER TABLE profile ADD COLUMN for_fun TEXT');
+  }
+  if (!profileCols.some((c) => c.name === 'dismissed_skills')) {
+    sqlite.exec('ALTER TABLE profile ADD COLUMN dismissed_skills TEXT');
+  }
+
+  // Artifact gained a filename slot — cover letters carry a clickbait save-as name.
+  if (!artifactCols.some((c) => c.name === 'filename')) {
+    sqlite.exec('ALTER TABLE artifact ADD COLUMN filename TEXT');
   }
 
   // Migrate skills from string[] to { name, strength }[]. Existing rows stored

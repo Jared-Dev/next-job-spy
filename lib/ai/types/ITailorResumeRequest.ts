@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { ProfileSchema } from '@/lib/storage/types/IProfile';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
 export const TailorResumeRequestSchema = z.object({
   profile: ProfileSchema,
@@ -11,9 +10,9 @@ export const TailorResumeRequestSchema = z.object({
     location: z.string().optional(),
     description: z.string(),
   }),
-  templateId: z.nativeEnum(ETemplateId),
   model: z.string().optional(),
   directive: z.string().optional(),
 });
 
-export interface ITailorResumeRequest extends z.infer<typeof TailorResumeRequestSchema> {}
+export interface ITailorResumeRequest
+  extends z.infer<typeof TailorResumeRequestSchema> {}

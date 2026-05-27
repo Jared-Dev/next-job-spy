@@ -29,6 +29,9 @@ export const profile = sqliteTable('profile', {
   education: text('education', { mode: 'json' }).$type<IEducationEntry[]>(),
   skills: text('skills', { mode: 'json' }).$type<ISkill[]>(),
   achievements: text('achievements', { mode: 'json' }).$type<string[]>(),
+  forFun: text('for_fun'),
+  /** Skills the candidate told us they don't have — stored lowercased so we stop asking. */
+  dismissedSkills: text('dismissed_skills', { mode: 'json' }).$type<string[]>(),
   preferences: text('preferences', { mode: 'json' }).$type<IPreferences>(),
   careerContext: text('career_context', { mode: 'json' }).$type<ICareerContext>(),
   sourceMarkdown: text('source_markdown'),
@@ -74,6 +77,9 @@ export const job = sqliteTable('job', {
    *  set) from "embedding stage bypassed because local was off"
    *  (LocalDone with this null). */
   localJudgedAt: integer('local_judged_at'),
+  /** Skills/tools/keywords extracted from the job description for the
+   * missing-skills prompt. Cached so we don't re-extract on every open. */
+  desiredSkills: text('desired_skills', { mode: 'json' }).$type<string[]>(),
 });
 
 export const screeningAudit = sqliteTable('screening_audit', {
@@ -105,10 +111,11 @@ export const artifact = sqliteTable('artifact', {
   }),
   parentArtifactId: integer('parent_artifact_id'),
   kind: text('kind').notNull(),
-  templateId: text('template_id'),
   prompt: text('prompt'),
   inputHash: text('input_hash'),
   content: text('content').notNull(),
+  /** Recommended save-as filename (cover letters use the model's clickbait name). */
+  filename: text('filename'),
   usage: text('usage', { mode: 'json' }),
   pinned: integer('pinned', { mode: 'boolean' }),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),

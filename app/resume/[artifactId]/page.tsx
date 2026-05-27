@@ -1,12 +1,10 @@
+import { Box } from '@mantine/core';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { ArtifactResumePreview } from '@/components/resume/ArtifactResumePreview';
 import { ResumePreview } from '@/components/resume/ResumePreview';
-import { SAMPLE_GENERALIST_RESUME } from '@/lib/resume/sampleGeneralistResume';
-import { SAMPLE_LEADER_RESUME } from '@/lib/resume/sampleLeaderResume';
 import { SAMPLE_RESUME } from '@/lib/resume/sampleResume';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
 export const metadata: Metadata = {
   title: 'Resume',
@@ -14,9 +12,10 @@ export const metadata: Metadata = {
 
 /**
  * Resume view — /resume/[artifactId]. A numeric param loads a generated resume
- * artifact and renders it. A template-id param (e.g. `ic-technical`) previews
- * that template's static sample, kept for design iteration. Renders
- * chrome-free.
+ * artifact and renders it. The literal `sample` param previews the static
+ * sample document, kept for design iteration. Renders chrome-free so the page
+ * works equally well as a standalone view and as the body of an intercepting
+ * modal route.
  */
 export default async function ResumeViewPage({
   params,
@@ -27,33 +26,20 @@ export default async function ResumeViewPage({
 
   const numericId = Number(artifactId);
   if (Number.isInteger(numericId) && numericId > 0) {
-    return <ArtifactResumePreview artifactId={numericId} />;
+    return (
+      <Box h="100vh">
+        <ArtifactResumePreview artifactId={numericId} />
+      </Box>
+    );
   }
 
-  switch (artifactId) {
-    case ETemplateId.IcTechnical:
-      return (
-        <ResumePreview
-          templateId={ETemplateId.IcTechnical}
-          data={SAMPLE_RESUME}
-        />
-      );
-    case ETemplateId.Leader:
-      return (
-        <ResumePreview
-          templateId={ETemplateId.Leader}
-          data={SAMPLE_LEADER_RESUME}
-        />
-      );
-    case ETemplateId.Generalist:
-      return (
-        <ResumePreview
-          templateId={ETemplateId.Generalist}
-          data={SAMPLE_GENERALIST_RESUME}
-        />
-      );
-    default:
-      // Not a known template id.
-      notFound();
+  if (artifactId === 'sample') {
+    return (
+      <Box h="100vh">
+        <ResumePreview data={SAMPLE_RESUME} />
+      </Box>
+    );
   }
+
+  notFound();
 }
