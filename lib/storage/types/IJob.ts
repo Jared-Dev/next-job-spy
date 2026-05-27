@@ -41,6 +41,8 @@ export const JobSchema = z.object({
   screenReason: z.string().optional(),
   priorityBumpedAt: z.number().int().optional(),
   livenessCheckedAt: z.number().int().optional(),
+  /** Skills/tools/keywords extracted from the description; cached after first run. */
+  desiredSkills: z.array(z.string()).optional(),
 });
 
 export interface IJob extends z.infer<typeof JobSchema> {}

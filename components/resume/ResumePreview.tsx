@@ -3,8 +3,8 @@
 import { Center, Loader } from '@mantine/core';
 import dynamic from 'next/dynamic';
 
+import type { IResumeJobContext } from '@/components/resume/ResumeStage';
 import type { IResumeDocument } from '@/lib/resume/types/IResumeDocument';
-import type { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
 /**
  * Client-only entry point for the resume preview. `@react-pdf/renderer`'s
@@ -16,7 +16,7 @@ const ResumeStage = dynamic(
   {
     ssr: false,
     loading: () => (
-      <Center h="100vh">
+      <Center h="100%">
         <Loader size="sm" />
       </Center>
     ),
@@ -24,11 +24,11 @@ const ResumeStage = dynamic(
 );
 
 export function ResumePreview({
-  templateId,
   data,
+  job,
 }: {
-  templateId: ETemplateId;
   data: IResumeDocument;
+  job?: IResumeJobContext;
 }) {
-  return <ResumeStage templateId={templateId} data={data} />;
+  return <ResumeStage data={data} job={job} />;
 }

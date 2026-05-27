@@ -1,12 +1,13 @@
 'use client';
 
-import { Container, Skeleton, Stack } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { Container, Group, Skeleton, Stack } from '@mantine/core';
+import { useCallback, useEffect, useState } from 'react';
 
 import { AddJobButton } from '@/components/jobs/AddJobButton';
 import { JobFilters } from '@/components/jobs/JobFilters';
 import { JobsVirtualList } from '@/components/jobs/JobsVirtualList';
 import { NoJobsState } from '@/components/jobs/NoJobsState';
+import { RefreshSourcesButton } from '@/components/jobs/RefreshSourcesButton';
 import { ScreeningGateModal } from '@/components/jobs/ScreeningGateModal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { adapter } from '@/lib/storage';
@@ -18,19 +19,40 @@ const DEFAULT_FILTERS: IJobFilters = {
 };
 
 /**
+ * True when any filter beyond the default status set is in play. Used to
+ * tell `NoJobsState` to render a "no matches" view rather than auto-firing
+ * a refresh against the user's sources.
+ */
+function hasActiveFilters(filters: IJobFilters): boolean {
+  const status = filters.status ?? [];
+  const statusIsDefault =
+    status.length === 3 &&
+    status.includes(EJobStatus.New) &&
+    status.includes(EJobStatus.Saved) &&
+    status.includes(EJobStatus.Applied);
+  if (!statusIsDefault) return true;
+  if ((filters.sources?.length ?? 0) > 0) return true;
+  if ((filters.countries?.length ?? 0) > 0) return true;
+  if ((filters.languages?.length ?? 0) > 0) return true;
+  if (filters.remoteOnly) return true;
+  if (typeof filters.minFitScore === 'number') return true;
+  if ((filters.search?.trim().length ?? 0) > 0) return true;
+  return false;
+}
+
+/**
  * Subset of IJobFilters worth persisting across visits. Skip:
  *   - `search`     transient query, retyped each session
  *   - `includeScreened`  audit-only escape hatch, not a default
- *   - `sources`    not surfaced in the filter UI yet
- * Persisting the rest avoids the user re-toggling "Remote only"
- * and re-picking their country every time they open /jobs, which
+ * Persisting the rest avoids the user re-toggling "Remote only" / "Manual
+ * only" and re-picking their country every time they open /jobs, which
  * is especially important because clearing those filters causes
  * the cascade to score jobs the user never wanted scored.
  */
 const FILTERS_STORAGE_KEY = 'njs:jobs:filters';
 type TPersistedFilters = Pick<
   IJobFilters,
-  'status' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore'
+  'status' | 'sources' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore'
 >;
 
 function loadFilters(): IJobFilters {
@@ -41,6 +63,7 @@ function loadFilters(): IJobFilters {
     const parsed = JSON.parse(raw) as Partial<TPersistedFilters>;
     return {
       status: parsed.status ?? DEFAULT_FILTERS.status,
+      sources: parsed.sources,
       remoteOnly: parsed.remoteOnly,
       countries: parsed.countries,
       languages: parsed.languages,
@@ -55,6 +78,7 @@ function saveFilters(filters: IJobFilters): void {
   if (typeof window === 'undefined') return;
   const payload: TPersistedFilters = {
     status: filters.status,
+    sources: filters.sources,
     remoteOnly: filters.remoteOnly,
     countries: filters.countries,
     languages: filters.languages,
@@ -101,12 +125,20 @@ export default function JobsPage() {
     (settings.screeningEmbeddingEnabled === undefined ||
       settings.screeningLocalEnabled === undefined);
 
+  const filtersActive = hasActiveFilters(filters);
+  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+
   return (
     <Container size="lg" px={0}>
       <PageHeader
         title="Jobs"
         description="Pulled from your sources or added by hand. Save what you like, hide what you don't, tailor on click."
-        actions={<AddJobButton />}
+        actions={
+          <Group gap="sm" wrap="nowrap">
+            <RefreshSourcesButton />
+            <AddJobButton />
+          </Group>
+        }
       />
 
       {/*
@@ -127,7 +159,10 @@ export default function JobsPage() {
             <Skeleton height={92} />
           </Stack>
         ) : jobs.length === 0 ? (
-          <NoJobsState />
+          <NoJobsState
+            filtered={filtersActive}
+            onClearFilters={filtersActive ? clearFilters : undefined}
+          />
         ) : (
           <JobsVirtualList jobs={jobs} />
         )}

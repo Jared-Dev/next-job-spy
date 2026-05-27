@@ -138,6 +138,7 @@ export function CoverLetterPanel({ job }: ICoverLetterPanelProps) {
         prompt: trimmedDirective || undefined,
         inputHash,
         content: response.content,
+        filename: response.filename,
         usage: response.usage,
         createdAt: Math.floor(Date.now() / 1000),
       });

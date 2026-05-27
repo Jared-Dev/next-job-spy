@@ -86,6 +86,8 @@ function toFormValues(initial: IProfile | undefined): TProfileFormValues {
         field: e.field ?? '',
         startDate: e.startDate ?? '',
         endDate: e.endDate ?? '',
+        gpa: e.gpa ?? '',
+        gpaScale: e.gpaScale ?? '4.0',
         notes: e.notes ?? '',
       })) ?? [],
     skills:
@@ -152,6 +154,8 @@ function toProfile(values: TProfileFormValues): IProfile {
         field: emptyToUndef(e.field),
         startDate: emptyToUndef(e.startDate),
         endDate: emptyToUndef(e.endDate),
+        gpa: emptyToUndef(e.gpa),
+        gpaScale: emptyToUndef(e.gpaScale),
         notes: emptyToUndef(e.notes),
       })),
     skills: values.skills
@@ -182,6 +186,9 @@ const EMPTY_EDUCATION = {
   field: '',
   startDate: '',
   endDate: '',
+  gpa: '',
+  // 4.0 is the standard US scale; the user can override per entry.
+  gpaScale: '4.0',
   notes: '',
 };
 
@@ -583,12 +590,26 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
                       </SimpleGrid>
                       <RemoveButton onClick={() => form.removeListItem('education', idx)} />
                     </Group>
+                    <Group gap="xs" grow>
+                      <TextInput
+                        label="GPA"
+                        placeholder="3.62"
+                        description="The number you received. Leave blank to omit."
+                        {...form.getInputProps(`education.${idx}.gpa`)}
+                      />
+                      <TextInput
+                        label="GPA scale"
+                        placeholder="4.0"
+                        description="What the GPA is out of. Defaults to 4.0."
+                        {...form.getInputProps(`education.${idx}.gpaScale`)}
+                      />
+                    </Group>
                     <Textarea
                       label="Notes"
                       autosize
                       minRows={1}
                       maxRows={3}
-                      placeholder="GPA, honors, relevant coursework…"
+                      placeholder="Specializations, honors, clubs, relevant coursework…"
                       {...form.getInputProps(`education.${idx}.notes`)}
                     />
                   </Stack>

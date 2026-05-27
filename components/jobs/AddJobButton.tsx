@@ -26,8 +26,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { postJson } from '@/lib/ai/postJson';
+import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
 import { inferCountry } from '@/lib/jobs/inferCountry';
 import type { IImportedJob } from '@/lib/jobs/importJob/types/IImportedJob';
+import { isProfileMeaningful } from '@/lib/profile/isProfileMeaningful';
 import { markdownToHtml } from '@/lib/resume/markdownToHtml';
 import { adapter } from '@/lib/storage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
@@ -47,6 +49,17 @@ interface IImportResponse {
   note?: string;
 }
 
+interface IRankResultRow {
+  id: string;
+  fitScore: number;
+  fitNotes: string;
+}
+interface IRankResponse {
+  results: IRankResultRow[];
+}
+
+const RANK_DESCRIPTION_CAP = 4000;
+
 export function AddJobButton() {
   const [opened, { open, close }] = useDisclosure(false);
   const [busy, setBusy] = useState(false);
@@ -54,6 +67,7 @@ export function AddJobButton() {
   const [showPreview, setShowPreview] = useState(false);
   const router = useRouter();
   const settings = adapter.useSettings();
+  const profile = adapter.useProfile();
 
   const form = useForm<TAddJobFormValues>({
     initialValues: {
@@ -134,6 +148,7 @@ export function AddJobButton() {
     try {
       const now = unixSeconds();
       const location = values.location.trim();
+      const description = values.description.trim();
       const job: IJob = {
         source: ESourceId.Manual,
         sourceId: crypto.randomUUID(),
@@ -143,20 +158,59 @@ export function AddJobButton() {
         location: location || undefined,
         country: inferCountry(location),
         remote: values.remote,
-        descriptionMd: values.description.trim(),
+        descriptionMd: description,
         discoveredAt: now,
         status: EJobStatus.Saved,
       };
       const id = await adapter.createJob(job);
-      notifications.show({
-        color: 'teal',
-        title: 'Job added',
-        message: `${job.title} at ${job.company} — rank it or tailor a resume now.`,
-      });
       form.reset();
       setShowPreview(false);
       close();
       router.push(`/jobs/${id}`);
+      notifications.show({
+        color: 'teal',
+        title: 'Job added',
+        message: `${job.title} at ${job.company}. Scoring now…`,
+      });
+
+      // Manual jobs skip the screening cascade and go straight to Claude
+      // scoring. Fire-and-forget so the redirect happens immediately; the
+      // job detail page picks up the score reactively once it lands.
+      if (isProfileMeaningful(profile)) {
+        const truncated =
+          description.length > RANK_DESCRIPTION_CAP
+            ? `${description.slice(0, RANK_DESCRIPTION_CAP)}\n\n[Description truncated by client at ${RANK_DESCRIPTION_CAP} chars; score what is shown.]`
+            : description;
+        void postJson<IRankResponse>('/api/ai/rank', {
+          profile,
+          jobs: [
+            {
+              id: String(id),
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              description: truncated,
+            },
+          ],
+          model: EAnthropicModel.Haiku45,
+        })
+          .then(async (res) => {
+            const result = res.results[0];
+            if (!result) return;
+            await adapter.updateJobFit(id, result.fitScore, result.fitNotes);
+          })
+          .catch((err: unknown) => {
+            notifications.show({
+              color: 'yellow',
+              icon: <IconExclamationCircle size={18} />,
+              title: 'Could not score yet',
+              message:
+                err instanceof Error
+                  ? err.message
+                  : 'The job was added; scoring will retry from the list.',
+            });
+          });
+      }
     } catch (err) {
       notifications.show({
         color: 'red',

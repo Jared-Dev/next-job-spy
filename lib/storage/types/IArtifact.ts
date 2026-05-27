@@ -9,10 +9,15 @@ export const ArtifactSchema = z.object({
   applicationId: z.number().int().optional(),
   parentArtifactId: z.number().int().optional(),
   kind: z.nativeEnum(EArtifactKind),
-  templateId: z.string().optional(),
   prompt: z.string().optional(),
   inputHash: z.string().optional(),
   content: z.string(),
+  /**
+   * Recommended save-as filename for the artifact. Cover letters use this for
+   * the clickbait-style filename the model generates; resumes use a
+   * standardized name and can leave this empty.
+   */
+  filename: z.string().optional(),
   usage: UsageStampSchema.optional(),
   createdAt: z.number().int(),
   pinned: z.boolean().optional(),

@@ -21,6 +21,7 @@ import { adapter } from '@/lib/storage';
 import { COUNTRY_LABELS } from '@/lib/jobs/inferCountry';
 import { languageDisplayName } from '@/lib/jobs/detectLanguage';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
+import { ESourceId } from '@/lib/storage/types/ESourceId';
 import {
   UNKNOWN_COUNTRY_TOKEN,
   UNKNOWN_LANGUAGE_TOKEN,
@@ -133,6 +134,18 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
           label="Remote only"
           checked={!!value.remoteOnly}
           onChange={(e) => onChange({ ...value, remoteOnly: e.currentTarget.checked })}
+        />
+
+        <Switch
+          size="sm"
+          label="Manual only"
+          checked={(value.sources ?? []).includes(ESourceId.Manual)}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              sources: e.currentTarget.checked ? [ESourceId.Manual] : undefined,
+            })
+          }
         />
 
         <NumberInput

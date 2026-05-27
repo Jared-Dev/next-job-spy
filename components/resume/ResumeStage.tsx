@@ -1,75 +1,82 @@
 'use client';
 
-import { useState } from 'react';
-import { Box, Button, Group, Text } from '@mantine/core';
-import { IconDownload, IconExternalLink } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
+import { Box, Button, Group } from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 
-import { GeneralistDocument } from '@/components/resume/pdf/GeneralistDocument';
-import { IcTechnicalDocument } from '@/components/resume/pdf/IcTechnicalDocument';
-import { LeaderDocument } from '@/components/resume/pdf/LeaderDocument';
+import { ResumeDocument } from '@/components/resume/pdf/ResumeDocument';
 import type { IResumeDocument } from '@/lib/resume/types/IResumeDocument';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
-/** Template id maps to the react-pdf document that renders it. */
-const RESUME_DOCUMENTS = {
-  [ETemplateId.IcTechnical]: IcTechnicalDocument,
-  [ETemplateId.Leader]: LeaderDocument,
-  [ETemplateId.Generalist]: GeneralistDocument,
-};
+export interface IResumeJobContext {
+  title?: string;
+  company?: string;
+}
 
 /**
- * Resume preview surface — a toolbar over an inline PDF viewer. The viewer and
- * the Export button render the *same* template document, so the preview is the
- * exported file. Loaded client-only (react-pdf's viewer touches browser APIs).
+ * Resume preview surface — a thin toolbar over an inline PDF viewer. The
+ * viewer and the Export button render the *same* document, so the preview is
+ * the exported file. Loaded client-only (react-pdf's viewer touches browser
+ * APIs).
  *
- * Export currently downloads the generated PDF. Once artifact storage lands,
- * Export will also persist the blob and View will reopen the stored copy.
+ * The document JSX is memoised so the embedded `<PDFViewer>` iframe sees a
+ * stable child reference across renders. Without that, every parent re-render
+ * (job prop updates, useJob ticks, modal animation frames) re-generated the
+ * blob and could leave the iframe stuck on an empty / broken state.
+ *
+ * Only Export PDF is offered (no "Open in new tab"): a blob URL opened that
+ * way ends up with a UUID filename in the address bar, which is what the
+ * browser uses if the user then hits Save. Export uses the `download`
+ * attribute so the saved file picks up a human-readable name.
  */
 export function ResumeStage({
-  templateId,
   data,
+  job,
 }: {
-  templateId: ETemplateId;
   data: IResumeDocument;
+  job?: IResumeJobContext;
 }) {
   const [busy, setBusy] = useState(false);
 
-  const ResumeDoc = RESUME_DOCUMENTS[templateId];
+  // Pull scalars out so the memo deps stay primitive — a fresh `job` object
+  // reference with identical title + company should not bust the PDFViewer's
+  // stable document JSX.
+  const jobTitle = job?.title;
+  const jobCompany = job?.company;
+  const filename = useMemo(
+    () => buildResumeFilename(data.name, jobTitle, jobCompany),
+    [data.name, jobTitle, jobCompany],
+  );
+  const documentTitle = useMemo(() => filename.replace(/\.pdf$/i, ''), [filename]);
 
-  async function withPdf(consume: (blob: Blob) => void) {
-    setBusy(true);
-    try {
-      const blob = await pdf(<ResumeDoc data={data} />).toBlob();
-      consume(blob);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const documentElement = useMemo(
+    () => <ResumeDocument data={data} documentTitle={documentTitle} />,
+    [data, documentTitle],
+  );
 
   function handleExport() {
-    void withPdf((blob) => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${data.name.replace(/\s+/g, '-')}-Resume.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    });
-  }
-
-  function handleView() {
-    void withPdf((blob) => {
-      window.open(URL.createObjectURL(blob), '_blank', 'noopener,noreferrer');
-    });
+    setBusy(true);
+    void (async () => {
+      try {
+        const blob = await pdf(documentElement).toBlob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      } finally {
+        setBusy(false);
+      }
+    })();
   }
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <Box style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Group
-        justify="space-between"
+        justify="flex-end"
         px="md"
         py="xs"
         style={{
@@ -77,35 +84,42 @@ export function ResumeStage({
           borderBottom: '1px solid var(--mantine-color-default-border)',
         }}
       >
-        <Text fw={600} size="sm">
-          Resume preview
-        </Text>
-        <Group gap="xs">
-          <Button
-            variant="default"
-            size="xs"
-            leftSection={<IconExternalLink size={15} stroke={1.6} />}
-            onClick={handleView}
-            loading={busy}
-          >
-            View
-          </Button>
-          <Button
-            size="xs"
-            leftSection={<IconDownload size={15} stroke={1.6} />}
-            onClick={handleExport}
-            loading={busy}
-          >
-            Export PDF
-          </Button>
-        </Group>
+        <Button
+          size="xs"
+          leftSection={<IconDownload size={15} stroke={1.6} />}
+          onClick={handleExport}
+          loading={busy}
+        >
+          Export PDF
+        </Button>
       </Group>
 
       <Box style={{ flex: 1, minHeight: 0 }}>
         <PDFViewer className="njs-pdf-frame" width="100%" height="100%">
-          <ResumeDoc data={data} />
+          {documentElement}
         </PDFViewer>
       </Box>
     </Box>
   );
+}
+
+/**
+ * Save-as filename built from candidate + job context. Format:
+ *   "Name - Company - Role.pdf" when both are known.
+ *   "Name - Company.pdf" / "Name - Role.pdf" when only one is.
+ *   "Name Resume.pdf" when neither is.
+ */
+function buildResumeFilename(
+  name: string,
+  jobTitle: string | undefined,
+  jobCompany: string | undefined,
+): string {
+  const safe = (s: string) =>
+    s.replace(/\s+/g, ' ').replace(/[\\/:*?"<>|]/g, '').trim();
+  const cleanName = safe(name) || 'Resume';
+  const cleanCompany = jobCompany ? safe(jobCompany) : '';
+  const cleanTitle = jobTitle ? safe(jobTitle) : '';
+  const parts = [cleanName, cleanCompany, cleanTitle].filter(Boolean);
+  if (parts.length === 1) return `${parts[0]} Resume.pdf`;
+  return `${parts.join(' - ')}.pdf`;
 }

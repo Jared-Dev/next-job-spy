@@ -19,12 +19,11 @@ export function hashTailorInputs(parts: {
   profile: unknown;
   jobDescription: string;
   jobTitle: string;
-  templateId: string;
   model: string;
   directive: string;
 }): string {
   return cyrb53(
-    `${parts.templateId}|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.directive}|${JSON.stringify(parts.profile)}`,
+    `tailor|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.directive}|${JSON.stringify(parts.profile)}`,
   );
 }
 

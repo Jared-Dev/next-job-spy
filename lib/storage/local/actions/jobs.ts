@@ -7,7 +7,7 @@ import { db, schema } from '@/lib/storage/local/sqlite/Database';
 import type { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import { EPipelineStatus } from '@/lib/storage/types/EPipelineStatus';
 import { EScreenStage } from '@/lib/storage/types/EScreenStage';
-import type { ESourceId } from '@/lib/storage/types/ESourceId';
+import { ESourceId } from '@/lib/storage/types/ESourceId';
 import type { IJob } from '@/lib/storage/types/IJob';
 import {
   UNKNOWN_COUNTRY_TOKEN,
@@ -49,6 +49,7 @@ function rowToJob(row: typeof schema.job.$inferSelect): IJob {
     screenReason: row.screenReason ?? undefined,
     priorityBumpedAt: row.priorityBumpedAt ?? undefined,
     livenessCheckedAt: row.livenessCheckedAt ?? undefined,
+    desiredSkills: row.desiredSkills ?? undefined,
   };
 }
 
@@ -249,13 +250,34 @@ export async function upsertJobsAction(
 }
 
 export async function createJobAction(job: IJob): Promise<number> {
-  const initialStatus = await getInitialPipelineStatusAction();
-  const settings = await getSettingsAction();
-  const langScreen = screenLanguageForInsert(
-    job,
-    settings.allowedLanguages,
-    initialStatus,
-  );
+  // Manual jobs bypass the entire screening cascade: the user explicitly
+  // chose to add this posting, so we never want to filter it out by
+  // language, embedding, local LLM, or liveness. They land directly in
+  // LocalDone, which makes them eligible for Claude scoring without
+  // passing through any gate that could screen them out.
+  const isManual = job.source === ESourceId.Manual;
+  let pipelineStatus: EPipelineStatus;
+  let language: string | null;
+  let screenedOutBy: EScreenStage | null;
+  let screenReason: string | null;
+  if (isManual) {
+    pipelineStatus = EPipelineStatus.LocalDone;
+    language = null;
+    screenedOutBy = null;
+    screenReason = null;
+  } else {
+    const initialStatus = await getInitialPipelineStatusAction();
+    const settings = await getSettingsAction();
+    const langScreen = screenLanguageForInsert(
+      job,
+      settings.allowedLanguages,
+      initialStatus,
+    );
+    pipelineStatus = langScreen.pipelineStatus;
+    language = langScreen.language;
+    screenedOutBy = langScreen.screenedOutBy;
+    screenReason = langScreen.screenReason;
+  }
   const result = db
     .insert(schema.job)
     .values({
@@ -266,7 +288,7 @@ export async function createJobAction(job: IJob): Promise<number> {
       company: job.company,
       location: job.location ?? null,
       country: job.country ?? null,
-      language: langScreen.language,
+      language,
       remote: job.remote ?? null,
       salaryMin: job.salaryMin ?? null,
       salaryMax: job.salaryMax ?? null,
@@ -278,14 +300,16 @@ export async function createJobAction(job: IJob): Promise<number> {
       fitScore: job.fitScore ?? null,
       fitNotes: job.fitNotes ?? null,
       status: job.status,
-      pipelineStatus: langScreen.pipelineStatus,
-      screenedOutBy: langScreen.screenedOutBy,
-      screenReason: langScreen.screenReason,
+      pipelineStatus,
+      screenedOutBy,
+      screenReason,
     })
     .run();
-  // Kick the embedding drain (fire-and-forget). Single-job create still
-  // benefits from the screen running before the user opens the job.
-  void kickEmbeddingDrainAction();
+  // Kick the embedding drain (fire-and-forget) for sourced jobs. Manual
+  // jobs skip the cascade entirely and don't need it.
+  if (!isManual) {
+    void kickEmbeddingDrainAction();
+  }
   return Number(result.lastInsertRowid);
 }
 
@@ -306,6 +330,16 @@ export async function updateJobFitAction(
   // a manual Score-now override mark the job done in one shot.
   db.update(schema.job)
     .set({ fitScore, fitNotes, pipelineStatus: EPipelineStatus.Scored })
+    .where(eq(schema.job.id, id))
+    .run();
+}
+
+export async function setJobDesiredSkillsAction(
+  id: number,
+  skills: string[],
+): Promise<void> {
+  db.update(schema.job)
+    .set({ desiredSkills: skills })
     .where(eq(schema.job.id, id))
     .run();
 }

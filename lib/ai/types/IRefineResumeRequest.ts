@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { ProfileSchema } from '@/lib/storage/types/IProfile';
-import { ETemplateId } from '@/lib/storage/types/ETemplateId';
 
 import { ERefineScope } from './ERefineScope';
 
@@ -13,7 +12,6 @@ export const RefineResumeRequestSchema = z.object({
     location: z.string().optional(),
     description: z.string(),
   }),
-  templateId: z.nativeEnum(ETemplateId),
   baseContent: z.string(),
   instruction: z.string().min(1).max(2000),
   scope: z.nativeEnum(ERefineScope).default(ERefineScope.Whole),
@@ -21,4 +19,5 @@ export const RefineResumeRequestSchema = z.object({
   model: z.string().optional(),
 });
 
-export interface IRefineResumeRequest extends z.infer<typeof RefineResumeRequestSchema> {}
+export interface IRefineResumeRequest
+  extends z.infer<typeof RefineResumeRequestSchema> {}
