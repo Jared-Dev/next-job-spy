@@ -9,17 +9,18 @@ import {
   HoverCard,
   MultiSelect,
   NumberInput,
+  Select,
   Stack,
-  Switch,
   Text,
   TextInput,
 } from '@mantine/core';
-import { IconInfoCircle, IconSearch } from '@tabler/icons-react';
+import { IconArrowsSort, IconInfoCircle, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { adapter } from '@/lib/storage';
 import { COUNTRY_LABELS } from '@/lib/jobs/inferCountry';
 import { languageDisplayName } from '@/lib/jobs/detectLanguage';
+import { EJobSort } from '@/lib/storage/types/EJobSort';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import { ESourceId } from '@/lib/storage/types/ESourceId';
 import {
@@ -38,6 +39,13 @@ const STATUS_OPTIONS = [
   { value: EJobStatus.Saved, label: 'Saved' },
   { value: EJobStatus.Applied, label: 'Applied' },
   { value: EJobStatus.Hidden, label: 'Hidden' },
+];
+
+const SORT_OPTIONS = [
+  { value: EJobSort.Ranking, label: 'Ranking' },
+  { value: EJobSort.NewestDiscovered, label: 'Newest discovered' },
+  { value: EJobSort.PostedDate, label: 'Posted date' },
+  { value: EJobSort.Company, label: 'Company A to Z' },
 ];
 
 export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
@@ -106,7 +114,20 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
           onChange={(e) => onChange({ ...value, search: e.currentTarget.value })}
           style={{ flex: 1, maxWidth: 360 }}
         />
-        <Group gap={6} wrap="nowrap">
+        <Group gap="xs" wrap="nowrap">
+          <Select
+            size="xs"
+            data={SORT_OPTIONS}
+            value={value.sortBy ?? EJobSort.Ranking}
+            onChange={(next) =>
+              onChange({ ...value, sortBy: (next ?? EJobSort.Ranking) as EJobSort })
+            }
+            allowDeselect={false}
+            leftSection={<IconArrowsSort size={14} stroke={1.6} />}
+            comboboxProps={{ position: 'bottom-end' }}
+            aria-label="Sort jobs"
+            style={{ width: 200 }}
+          />
           <Text size="sm" c="dimmed">
             {totalCount} {totalCount === 1 ? 'job' : 'jobs'}
           </Text>
@@ -129,24 +150,28 @@ export function JobFilters({ value, onChange, totalCount }: IJobFiltersProps) {
           ))}
         </Chip.Group>
 
-        <Switch
-          size="sm"
-          label="Remote only"
+        <Chip
+          size="xs"
+          variant="light"
           checked={!!value.remoteOnly}
-          onChange={(e) => onChange({ ...value, remoteOnly: e.currentTarget.checked })}
-        />
+          onChange={(checked) => onChange({ ...value, remoteOnly: checked })}
+        >
+          Remote only
+        </Chip>
 
-        <Switch
-          size="sm"
-          label="Manual only"
+        <Chip
+          size="xs"
+          variant="light"
           checked={(value.sources ?? []).includes(ESourceId.Manual)}
-          onChange={(e) =>
+          onChange={(checked) =>
             onChange({
               ...value,
-              sources: e.currentTarget.checked ? [ESourceId.Manual] : undefined,
+              sources: checked ? [ESourceId.Manual] : undefined,
             })
           }
-        />
+        >
+          Manual only
+        </Chip>
 
         <NumberInput
           size="xs"

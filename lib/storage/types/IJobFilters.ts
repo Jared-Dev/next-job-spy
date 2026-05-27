@@ -1,9 +1,12 @@
+import { EJobSort } from './EJobSort';
 import { EJobStatus } from './EJobStatus';
 import { ESourceId } from './ESourceId';
 
 export interface IJobFilters {
   status?: EJobStatus[];
   sources?: ESourceId[];
+  /** Defaults to `EJobSort.Ranking` when omitted. */
+  sortBy?: EJobSort;
   /** ISO country codes plus the literal "unknown" for jobs with no inferred country. */
   countries?: string[];
   /** ISO 639-3 language codes plus the literal "unknown" for jobs the
