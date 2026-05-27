@@ -1,9 +1,10 @@
 'use server';
 
-import { and, desc, eq, gte, inArray, isNull, like, notInArray, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, like, notInArray, or, sql } from 'drizzle-orm';
 
 import { detectJobLanguage, languageDisplayName } from '@/lib/jobs/detectLanguage';
 import { db, schema } from '@/lib/storage/local/sqlite/Database';
+import { EJobSort } from '@/lib/storage/types/EJobSort';
 import type { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import { EPipelineStatus } from '@/lib/storage/types/EPipelineStatus';
 import { EScreenStage } from '@/lib/storage/types/EScreenStage';
@@ -115,9 +116,40 @@ export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
     .select()
     .from(schema.job)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(schema.job.discoveredAt))
+    .orderBy(...orderForSort(filters?.sortBy ?? EJobSort.Ranking))
     .all();
   return rows.map(rowToJob);
+}
+
+/**
+ * SQLite quirk: `desc()` sorts NULLs last and `asc()` sorts them first,
+ * which is the opposite of what we want for `fit_score`/`embedding_score`
+ * under Ranking and for `posted_at` under PostedDate. The `IS NULL` prefix
+ * column forces nulls to the bottom regardless of direction, then the real
+ * column orders the non-null rows.
+ */
+function orderForSort(sortBy: EJobSort) {
+  switch (sortBy) {
+    case EJobSort.NewestDiscovered:
+      return [desc(schema.job.discoveredAt)];
+    case EJobSort.PostedDate:
+      return [
+        sql`${schema.job.postedAt} IS NULL`,
+        desc(schema.job.postedAt),
+        desc(schema.job.discoveredAt),
+      ];
+    case EJobSort.Company:
+      return [asc(sql`LOWER(${schema.job.company})`), desc(schema.job.discoveredAt)];
+    case EJobSort.Ranking:
+    default:
+      return [
+        sql`${schema.job.fitScore} IS NULL AND ${schema.job.embeddingScore} IS NULL`,
+        sql`${schema.job.fitScore} IS NULL`,
+        desc(schema.job.fitScore),
+        desc(schema.job.embeddingScore),
+        desc(schema.job.discoveredAt),
+      ];
+  }
 }
 
 export async function getJobAction(id: number): Promise<IJob | null> {

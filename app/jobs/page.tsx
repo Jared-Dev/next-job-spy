@@ -11,12 +11,16 @@ import { RefreshSourcesButton } from '@/components/jobs/RefreshSourcesButton';
 import { ScreeningGateModal } from '@/components/jobs/ScreeningGateModal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { adapter } from '@/lib/storage';
+import { EJobSort } from '@/lib/storage/types/EJobSort';
 import { EJobStatus } from '@/lib/storage/types/EJobStatus';
 import type { IJobFilters } from '@/lib/storage/types/IJobFilters';
 
 const DEFAULT_FILTERS: IJobFilters = {
   status: [EJobStatus.New, EJobStatus.Saved, EJobStatus.Applied],
+  sortBy: EJobSort.Ranking,
 };
+
+const SORT_VALUES: ReadonlySet<EJobSort> = new Set(Object.values(EJobSort));
 
 /**
  * True when any filter beyond the default status set is in play. Used to
@@ -52,7 +56,7 @@ function hasActiveFilters(filters: IJobFilters): boolean {
 const FILTERS_STORAGE_KEY = 'njs:jobs:filters';
 type TPersistedFilters = Pick<
   IJobFilters,
-  'status' | 'sources' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore'
+  'status' | 'sources' | 'remoteOnly' | 'countries' | 'languages' | 'minFitScore' | 'sortBy'
 >;
 
 function loadFilters(): IJobFilters {
@@ -61,6 +65,10 @@ function loadFilters(): IJobFilters {
     const raw = window.localStorage.getItem(FILTERS_STORAGE_KEY);
     if (!raw) return DEFAULT_FILTERS;
     const parsed = JSON.parse(raw) as Partial<TPersistedFilters>;
+    const sortBy =
+      parsed.sortBy && SORT_VALUES.has(parsed.sortBy)
+        ? parsed.sortBy
+        : DEFAULT_FILTERS.sortBy;
     return {
       status: parsed.status ?? DEFAULT_FILTERS.status,
       sources: parsed.sources,
@@ -68,6 +76,7 @@ function loadFilters(): IJobFilters {
       countries: parsed.countries,
       languages: parsed.languages,
       minFitScore: parsed.minFitScore,
+      sortBy,
     };
   } catch {
     return DEFAULT_FILTERS;
@@ -83,6 +92,7 @@ function saveFilters(filters: IJobFilters): void {
     countries: filters.countries,
     languages: filters.languages,
     minFitScore: filters.minFitScore,
+    sortBy: filters.sortBy,
   };
   try {
     window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(payload));
@@ -126,7 +136,12 @@ export default function JobsPage() {
       settings.screeningLocalEnabled === undefined);
 
   const filtersActive = hasActiveFilters(filters);
-  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+  // Preserve the user's chosen sort when they wipe filters. Sort isn't a
+  // filter and shouldn't snap back just because they hit "Clear".
+  const clearFilters = useCallback(
+    () => setFilters((prev) => ({ ...DEFAULT_FILTERS, sortBy: prev.sortBy })),
+    [],
+  );
 
   return (
     <Container size="lg" px={0}>
