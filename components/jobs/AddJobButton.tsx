@@ -232,9 +232,11 @@ export function AddJobButton() {
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Paste a posting URL and hit Try import to auto-fill,or enter
+              Paste a posting URL and hit Try import to auto-fill, or enter
               everything by hand. A saved job can be ranked and tailored just
-              like a sourced one.
+              like a sourced one. For sites that block our fetch (LinkedIn,
+              Indeed, Glassdoor), grab the one-click bookmarklet from{' '}
+              <a href="/settings">Settings</a>.
             </Text>
 
             <Group align="flex-end" wrap="nowrap" gap="xs">
