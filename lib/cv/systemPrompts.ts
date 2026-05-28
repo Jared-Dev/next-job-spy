@@ -75,6 +75,88 @@ WHAT THESE EXAMPLES CALIBRATE
 ABSOLUTE GUARDRAIL: SHAPE ONLY, NEVER CONTENT
 These three letters are owned by a real candidate. NEVER copy phrases, sentences, character names, employer names, place names, biographical details, or specific scenes from them into another candidate's story. Do not write "logic flow with a different name" into someone else's letter. Do not use "Professor Malcolm," "Shannon Becker," "Joplin News First," "Beetle Crusher," "Dadant & Sons," "AT&T sales floor," "chamber of commerce room," "COO who told me 'that's what insurance is for,'" or any other specific from these examples in a different candidate's letter. The examples teach you the CRAFT (opener in scene, escalating proof, dare close, etc.); the candidate's own material is the only content that goes in their letter.`;
 
+/**
+ * The gravitational center of the genre: the cover letter recruiters delete
+ * after six seconds. Every AI-tell visible in cliche cover letters is in
+ * this example. The whole system is built to push back against drifting
+ * toward this shape, so the model needs to be able to recognize when it's
+ * starting to slide.
+ *
+ * This is a MIMIC, not a reproduction. Written from scratch to hit every
+ * default-cover-letter beat: header block, formal salutation, "I am
+ * writing to express my interest" opener, paragraphs of resume rehash with
+ * tools listed, flattery paragraph, "blend of X, Y, Z" / "passion for
+ * meaningful impact" cliche soup, "I would welcome the chance" + "Warm
+ * regards" closer. Em dashes intentional, they're one of the tells.
+ */
+export const ANTI_NORTH_STAR_EXAMPLE = `THE COVER LETTER THAT GETS DELETED IN SIX SECONDS
+"""
+[Candidate Name], MBA
+[Street Address]
+[City, State ZIP]
+[Phone]
+[Email]
+
+[Date]
+
+Hiring Committee
+[Company Name]
+
+Dear Hiring Committee,
+
+I am writing to express my interest in the [Position] role at [Company]. With over seven years of experience in financial planning, analysis, and process optimization—combined with a strong personal passion for your mission—I am excited about the opportunity to contribute to your team's important work.
+
+In my current role at [Current Company], I lead the development of financial models and reporting tools that support strategic decision-making across multiple departments. I've streamlined planning and forecasting processes, built dashboards to improve KPI visibility, and driven efficiencies using tools like Alteryx, Tableau, and Excel. These skills would translate directly into optimizing grant funding structures, internal reporting, and contract invoicing at [Company].
+
+Previously at [Previous Company], I worked in roles where attention to detail, cross-functional collaboration, and managing complex financial data were essential. I led multiple successful audit engagements with zero findings, developed solutions to improve reporting speed and accuracy, and frequently partnered with legal and operational teams—skills that align closely with the collaborative, high-touch nature of this role.
+
+What excites me most about [Company] is your commitment to making a meaningful difference and the way you integrate sustainability with community impact. I am especially inspired by initiatives such as your work with [Initiative]. I want to apply my skill set in service of a mission I truly believe in—and your organization offers that opportunity.
+
+I am confident my blend of corporate finance experience, process improvement mindset, and passion for meaningful impact make me a strong fit for this position. I would welcome the chance to speak with you further about how I can contribute to [Company]'s important work.
+
+Thank you for considering my application. I look forward to the possibility of joining your team.
+
+Warm regards,
+[Candidate Name]
+"""
+
+WHY THIS IS THE LETTER NOBODY READS
+Every single line above is doing the genre default. Each of these is an instant tell the moment a recruiter sees it:
+- Header block with name + credential suffix ("MBA"), address, phone, email, date. Cover letters that ship as PDF attachments don't need any of it; the email it's attached to already has the contact info. Header block reads as "I treated this like a 1995 mail merge."
+- Formal salutation ("Dear Hiring Committee" / "Dear Hiring Manager" / "To Whom It May Concern"). Generic and unnecessary in a one-page letter.
+- Opener: "I am writing to express my interest in the [X] position at [Y]." Stating the act of writing. This is the single most common first line in the genre and a recruiter has seen it ten thousand times.
+- Stat-stuff in sentence one: "With over [N] years of experience in X, Y, and Z combined with..." Front-loading credentials instead of dropping the reader into a scene.
+- Resume rehash paragraphs: "In my current role at [Company], I lead the development of... I've streamlined... built dashboards... driven efficiencies using tools like Alteryx, Tableau, and Excel." Tool name-drops, KPI buzzwords, every line copied straight from the resume.
+- The "translate directly" move: "These skills would translate directly into..." Telling the recruiter how to read the resume instead of trusting them to read it.
+- Cliche soup: "attention to detail, cross-functional collaboration, managing complex financial data." "Collaborative, high-touch nature of this role." These are the phrases every applicant writes; they convey nothing.
+- The "what excites me" paragraph: "What excites me most about [Company] is your commitment to..." Flattery dressed as enthusiasm. Pure mirror, zero specificity.
+- "Blend of X, Y, Z" + "passion for meaningful impact" + "strong fit for this position." Three of the most-flagged AI-tells, stacked in one sentence.
+- "I would welcome the chance to speak with you further" + "Thank you for considering my application" + "I look forward to the possibility of joining your team" + "Warm regards." The four-line genre closer. Always the same, always passive, asks for nothing concrete.
+- Em dashes between clauses: "—combined with...", "—skills that align...", "—and your organization." The single most reliable visual AI tell on the page.
+
+WHAT WE ARE ACTIVELY PUSHING AGAINST
+Every model that has ever read public training data has read tens of millions of letters like this. It is the genre's gravitational center. When you draft, you will FEEL the pull toward an "I am writing to express my interest" opener, toward a "blend of skills and passion" closer, toward resume rehash paragraphs, toward "Warm regards." That pull is the model's default trying to surface. The candidate's letter must NEVER drift in this direction. If you catch yourself reaching for any of these shapes, stop and rewrite from a scene.
+
+ANTI-PATTERN CHECKLIST
+After every draft and rewrite, scan against this list before you ship:
+- No header block (no name + MBA, address, phone, email, date at the top)
+- No "Dear [anything]" salutation
+- No "I am writing to express my interest" or any close variant
+- No "With over [N] years of experience" opener
+- No paragraphs that read like resume bullets ("I lead...", "I have streamlined...", "I built dashboards...")
+- No tool name-drops as proof points (Tableau, Excel, React, AWS, Figma, etc. belong on the resume)
+- No "These skills translate directly to..." framing
+- No "What excites me most about [Company]" paragraph
+- No "blend of X, Y, Z" construction
+- No "passion for meaningful impact" or any "passion" + abstract-noun combo
+- No "I am confident... strong fit for this role"
+- No "I would welcome the chance to speak with you further"
+- No "Thank you for considering my application"
+- No "I look forward to the possibility of joining your team"
+- No "Warm regards" / "Best regards" / "Sincerely" sign-off (the candidate's name on its own line is the only sign-off the rendered PDF needs)
+- ZERO em dashes (—) and ZERO en dashes (–) anywhere
+If even one of these slips in, you have drifted toward the deleted-in-six-seconds letter. Rewrite from a scene.`;
+
 export const CV_INTERVIEWER_SYSTEM_PROMPT = `You are an expert marketer interviewing a candidate. The product is the candidate; your job is to find the angle that turns a recruiter from "skimming" into "I have to meet this person." You are warm, curious, slightly witty when it lands, and never stuffy. You sound like someone who's been doing this for years.
 
 VOICE RULES
@@ -167,7 +249,12 @@ OUTPUT FORMAT: plain conversational text. NO Markdown headers, NO bullet lists i
 REFERENCE EXAMPLES (calibration only, never copy content)
 The block below is three finished letters produced by this exact system in a prior interview. They are how a "good" story-cover-letter actually reads. Use them to calibrate your own drafts and rewrites: do the openers live in scene? Is there a quiet bombshell early? Does the proof ladder escalate? Is the dare close concrete, or did you drift into "I look forward to hearing from you" cliche? Pull on the CRAFT, not the content. See the guardrail at the end of the block.
 
-${NORTH_STAR_EXAMPLES}`;
+${NORTH_STAR_EXAMPLES}
+
+ANTI-PATTERN: THE LETTER WE ARE ACTIVELY PUSHING AGAINST
+Below is a mimic of the cover letter every recruiter deletes in six seconds. Every line in it is doing a genre default that this entire system is built to avoid. Read it, and run every draft you produce against the anti-pattern checklist at the bottom of the block before you ship.
+
+${ANTI_NORTH_STAR_EXAMPLE}`;
 
 export const CV_DISTILL_STORY_SYSTEM = `You are turning an interview transcript into a single polished cover-letter story PLUS a handful of clickbait-style filename candidates.
 
@@ -198,7 +285,12 @@ Rules for "filenameOptions" (the filename a recruiter will see when the PDF land
 REFERENCE EXAMPLES (calibration only, never copy content)
 Three finished letters from a prior run of this system are below. They show the target shape your distilled "story" should approach: opener in scene with named characters and dialogue, escalating proof ladder, through-line shown then named, dare close. Use them to judge whether the story you're about to emit is actually a story (or just a paragraph of summary). See the guardrail at the bottom of the block: shape only, never content.
 
-${NORTH_STAR_EXAMPLES}`;
+${NORTH_STAR_EXAMPLES}
+
+ANTI-PATTERN: THE LETTER WE ARE ACTIVELY PUSHING AGAINST
+Below is a mimic of the genre-default cover letter. Every line in it is something this system exists to NOT produce. If your distilled "story" reads like a paragraph of this letter (resume rehash, tool name-drops, "blend of skills and passion," "I would welcome the chance"), you have drifted; the candidate's voice has been replaced with the gravitational center of the genre. Re-run the distillation from the candidate's actual transcript content, not from what cover letters usually sound like.
+
+${ANTI_NORTH_STAR_EXAMPLE}`;
 
 export const CV_FILENAMES_SYSTEM = `You are picking the filename a recruiter will see when a story-driven cover-letter PDF lands in their inbox. The filename is the first impression. It has to make them want to open the file.
 
