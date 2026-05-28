@@ -31,13 +31,13 @@ export default function HomePage() {
   const profile = adapter.useProfile();
   const applications = adapter.useApplications();
 
-  const appliedCount = applications ? String(applications.length) : '—';
+  const appliedCount = applications ? String(applications.length) : '-';
   const interviewingCount = applications
     ? String(
         applications.filter((a) => a.status === EApplicationStatus.Interview)
           .length,
       )
-    : '—';
+    : '-';
 
   const hasProfile =
     profile !== undefined &&
@@ -59,8 +59,8 @@ export default function HomePage() {
       ) : (
         <Stack gap="lg">
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-            <StatCard icon={IconBriefcase} label="Discovered" value="—" hint="Jobs in Phase 2" />
-            <StatCard icon={IconCheckupList} label="Saved" value="—" hint="Coming next" />
+            <StatCard icon={IconBriefcase} label="Discovered" value="-" hint="Jobs in Phase 2" />
+            <StatCard icon={IconCheckupList} label="Saved" value="-" hint="Coming next" />
             <StatCard
               icon={IconMailForward}
               label="Applied"

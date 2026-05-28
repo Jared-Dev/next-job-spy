@@ -53,7 +53,7 @@ export default function PreviewPage() {
     <Container size="lg" px={0}>
       <PageHeader
         title="Visual preview"
-        description="Every UI element a user will encounter. Mock data only — nothing here is wired up. Delete this route once the design is approved."
+        description="Every UI element a user will encounter. Mock data only, nothing here is wired up. Delete this route once the design is approved."
       />
 
       <Stack gap="xl">
@@ -62,13 +62,13 @@ export default function PreviewPage() {
           description="One sans family (Geist), two weights (400/600), indigo accent. Hierarchy through size and weight only."
         >
           <Stack gap="md">
-            <Title order={1}>Page title — 32px / 600</Title>
-            <Title order={2}>Section title — 24px / 600</Title>
-            <Title order={3}>Subsection — 20px / 600</Title>
-            <Title order={4}>Card title — 16px / 600</Title>
-            <Text>Body text — 16px / 400. The default voice of the interface.</Text>
+            <Title order={1}>Page title,32px / 600</Title>
+            <Title order={2}>Section title,24px / 600</Title>
+            <Title order={3}>Subsection,20px / 600</Title>
+            <Title order={4}>Card title,16px / 600</Title>
+            <Text>Body text,16px / 400. The default voice of the interface.</Text>
             <Text size="sm" c="dimmed">
-              Hint / description text — 14px / 400 dimmed. Used everywhere a label needs context.
+              Hint / description text,14px / 400 dimmed. Used everywhere a label needs context.
             </Text>
             <Group gap="xs">
               <Badge color="indigo" variant="filled">
@@ -110,7 +110,7 @@ export default function PreviewPage() {
             </Group>
 
             <Divider
-              label="AI buttons show token estimates only — never dollars pre-call"
+              label="AI buttons show token estimates only, never dollars pre-call"
               labelPosition="left"
             />
 
@@ -134,7 +134,7 @@ export default function PreviewPage() {
             </Group>
 
             <Divider
-              label="Session total — actuals only, computed from response usage"
+              label="Session total, actuals only, computed from response usage"
               labelPosition="left"
             />
 
@@ -169,7 +169,7 @@ export default function PreviewPage() {
               </Paper>
             </Group>
 
-            <Divider label="Artifact stamp — actual cost from completed call" labelPosition="left" />
+            <Divider label="Artifact stamp, actual cost from completed call" labelPosition="left" />
 
             <Paper p="md" withBorder>
               <Group justify="space-between" wrap="nowrap" align="center">
@@ -273,7 +273,7 @@ export default function PreviewPage() {
 
         <Section
           title="Job card (Phase 2)"
-          description="Two density levels — list rows for /jobs, and a detail card for /jobs/[id]. Fit score is the visual focal point."
+          description="Two density levels, list rows for /jobs, and a detail card for /jobs/[id]. Fit score is the visual focal point."
         >
           <Stack gap="md">
             {SAMPLE_JOBS.map((job) => (
@@ -294,7 +294,7 @@ export default function PreviewPage() {
                     Tailor resume for Senior Frontend Engineer at Anthropic
                   </Title>
                   <Text size="sm" c="dimmed">
-                    Uses your profile + this JD + the selected template. Cached by content hash — regenerating identical inputs is free.
+                    Uses your profile + this JD + the selected template. Cached by content hash,regenerating identical inputs is free.
                   </Text>
                 </Stack>
               </Group>
@@ -379,7 +379,7 @@ export default function PreviewPage() {
                   color: 'red',
                   icon: <IconAlertTriangle size={18} />,
                   title: 'Anthropic API error',
-                  message: 'Rate limit hit. Wait 60s and try again — no tokens were consumed.',
+                  message: 'Rate limit hit. Wait 60s and try again, no tokens were consumed.',
                 })
               }
             >
@@ -685,7 +685,7 @@ that cut feature delivery time by 40% across 6 product teams.
 
 ## Experience
 
-### Staff Frontend Engineer · Stripe — 2022–Present
+### Staff Frontend Engineer · Stripe, 2022 to Present
 - Led the rebuild of Stripe's internal component library, adopted
   by 6 teams and reducing duplicated work by 40%`}
               <Text component="span" c="dimmed">
@@ -711,7 +711,7 @@ that cut feature delivery time by 40% across 6 product teams.
 }
 
 /**
- * A scaled-down preview of what /resume/[id]/print would render — same CSS, just
+ * A scaled-down preview of what /resume/[id]/print would render, same CSS, just
  * sized to fit a kitchen-sink card. Real print route uses @page Letter rules
  * and removes the rounded border.
  */
@@ -759,7 +759,7 @@ function ResumePrintMock() {
         <ResumeRole
           title="Staff Frontend Engineer"
           company="Stripe"
-          dates="2022 – Present"
+          dates="2022 toPresent"
           bullets={[
             'Led the rebuild of the internal component library, now adopted by 6 product teams across 14 surfaces.',
             'Established the design-system contribution model; reduced new-component intake time from 2 weeks to 3 days.',
@@ -769,7 +769,7 @@ function ResumePrintMock() {
         <ResumeRole
           title="Senior Frontend Engineer"
           company="Vercel"
-          dates="2019 – 2022"
+          dates="2019 to2022"
           bullets={[
             'Owned the dashboard composition layer used by every internal team; cut p95 first-paint by 38%.',
             'Drove the Next.js 13 migration across 4 product surfaces with zero customer-visible regressions.',
@@ -779,7 +779,7 @@ function ResumePrintMock() {
         <ResumeRole
           title="Frontend Engineer"
           company="Linear"
-          dates="2017 – 2019"
+          dates="2017 to2019"
           bullets={[
             'Built the issue-list virtualization layer that handles 50k+ items at 60fps in Chrome.',
             'Authored the first internal accessibility playbook, since adopted across the engineering org.',
@@ -798,7 +798,7 @@ function ResumePrintMock() {
         <ResumeRole
           title="B.S. Computer Science"
           company="UC Berkeley"
-          dates="2013 – 2017"
+          dates="2013 to2017"
           bullets={[]}
           tight
         />

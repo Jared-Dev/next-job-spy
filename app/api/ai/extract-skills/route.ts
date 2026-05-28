@@ -23,7 +23,7 @@ const OutputSchema = z.object({
 /**
  * Extracts the skills/tools/technologies a job posting calls for, so the UI
  * can prompt the candidate to fill in any they have not yet rated. Cached on
- * the job row after the first extraction — subsequent calls are free unless
+ * the job row after the first extraction; subsequent calls are free unless
  * `force` is set. Uses Haiku because this is a narrow extraction task.
  */
 export async function POST(request: Request) {

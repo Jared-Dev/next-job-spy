@@ -96,7 +96,7 @@ function titleTag(html: string): string | undefined {
 }
 
 /**
- * Best-effort extraction of job fields from a posting's HTML — schema.org
+ * Best-effort extraction of job fields from a posting's HTML, schema.org
  * JobPosting JSON-LD first, then OpenGraph / `<title>` as a fallback.
  * Pure: never throws; returns whatever it could find.
  */

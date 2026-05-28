@@ -42,7 +42,7 @@ export function ResumeArtifactModal({ artifactId }: { artifactId: number }) {
       }}
       overlayProps={{
         onMouseDown: (e) => {
-          // Only close on direct hits — clicks bubbled up from inside the
+          // Only close on direct hits, clicks bubbled up from inside the
           // dialog (e.g. the iframe) shouldn't dismiss the modal.
           if (e.target === e.currentTarget) {
             router.back();

@@ -23,7 +23,7 @@ import { adapter } from '@/lib/storage';
  */
 export function ArtifactResumePreview({ artifactId }: { artifactId: number }) {
   const artifact = adapter.useArtifact(artifactId);
-  // Hooks must run unconditionally — pass 0 when there's no job to look up.
+  // Hooks must run unconditionally, pass 0 when there's no job to look up.
   // useJob returns undefined for an unknown id, which we handle below.
   const job = adapter.useJob(artifact?.jobId ?? 0);
 

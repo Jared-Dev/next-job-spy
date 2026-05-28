@@ -10,7 +10,7 @@ import type { IGpuCheckResult } from './gpuCheck';
  * WebGPU doesn't expose VRAM directly, so this leans on maxBufferSize
  * as a proxy for "real GPU vs integrated potato." It will be wrong
  * for users whose browser hides adapter info (Firefox, Safari often).
- * That's fine — the slider is always available and the user can
+ * That's fine, the slider is always available and the user can
  * override.
  */
 export function suggestParallelism(

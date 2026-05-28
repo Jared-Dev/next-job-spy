@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Job fields extracted from a posting URL — every field is best-effort. */
+/** Job fields extracted from a posting URL, every field is best-effort. */
 export const ImportedJobSchema = z.object({
   title: z.string().optional(),
   company: z.string().optional(),

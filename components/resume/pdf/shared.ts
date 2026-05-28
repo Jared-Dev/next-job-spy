@@ -3,7 +3,7 @@ import { Font } from '@react-pdf/renderer';
 /**
  * Shared setup for resume PDF documents: font registration (a side effect on
  * import) and the colour + typeface tokens every template draws from.
- * Templates differ in layout, density, and emphasis — never in palette or
+ * Templates differ in layout, density, and emphasis, never in palette or
  * typeface, so the resume suite reads as one designed product.
  */
 
@@ -23,7 +23,7 @@ Font.register({
   ],
 });
 
-// Words wrap whole — no mid-word hyphenation, which reads poorly on a resume.
+// Words wrap whole, no mid-word hyphenation, which reads poorly on a resume.
 Font.registerHyphenationCallback((word) => [word]);
 
 export const SANS = 'Source Sans 3';

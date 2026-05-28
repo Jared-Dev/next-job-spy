@@ -14,7 +14,7 @@ export interface IResumeJobContext {
 }
 
 /**
- * Resume preview surface — a thin toolbar over an inline PDF viewer. The
+ * Resume preview surface, a thin toolbar over an inline PDF viewer. The
  * viewer and the Export button render the *same* document, so the preview is
  * the exported file. Loaded client-only (react-pdf's viewer touches browser
  * APIs).
@@ -38,7 +38,7 @@ export function ResumeStage({
 }) {
   const [busy, setBusy] = useState(false);
 
-  // Pull scalars out so the memo deps stay primitive — a fresh `job` object
+  // Pull scalars out so the memo deps stay primitive, a fresh `job` object
   // reference with identical title + company should not bust the PDFViewer's
   // stable document JSX.
   const jobTitle = job?.title;

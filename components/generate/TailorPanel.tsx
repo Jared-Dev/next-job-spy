@@ -47,7 +47,7 @@ import type { ITailorPanelProps } from './types/ITailorPanelProps';
 const TAILOR_MAX_OUTPUT = 2500;
 
 function estimateInputTokens(profile: unknown, jd: string): number {
-  // 1 token ≈ 4 chars heuristic — close enough for a pre-call estimate.
+  // 1 token ≈ 4 chars heuristic, close enough for a pre-call estimate.
   const profileChars = JSON.stringify(profile).length;
   const jdChars = jd.length;
   return Math.round((profileChars + jdChars) / 4);

@@ -64,7 +64,7 @@ export function NoJobsState({
   }
 
   // Auto-fetch the first time we land here with sources configured but no
-  // jobs — UNLESS filters are masking rows. Filter-induced empties mean
+  // jobs, UNLESS filters are masking rows. Filter-induced empties mean
   // there's data in the database the user just isn't asking to see; pulling
   // more from sources won't help and burns the user's API quota.
   useEffect(() => {
@@ -114,7 +114,7 @@ export function NoJobsState({
       <EmptyState
         icon={IconBriefcase}
         title="No jobs yet"
-        description='Add a board source to pull postings automatically — or use the "Add job" button above to paste one in by hand.'
+        description='Add a board source to pull postings automatically, or use the "Add job" button above to paste one in by hand.'
         primaryAction={{ href: '/sources', label: 'Manage sources' }}
       />
     );
@@ -134,7 +134,7 @@ export function NoJobsState({
           </Title>
           <Text c="dimmed" ta="center" maw={440}>
             {refreshing
-              ? 'First load — fetching in parallel. Hang tight.'
+              ? 'First load,fetching in parallel. Hang tight.'
               : 'Sources are passive until refreshed. Pull postings now, or jump to /sources for per-source control.'}
           </Text>
         </Stack>

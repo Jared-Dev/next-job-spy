@@ -20,7 +20,7 @@ export function hasForbiddenDashes(text: string): boolean {
 }
 
 /**
- * Deterministic last-resort cleanup — used only if the model still slips a
+ * Deterministic last-resort cleanup, used only if the model still slips a
  * dash through after its re-write attempts, so a document is never delivered
  * with a forbidden dash.
  */

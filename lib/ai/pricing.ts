@@ -3,7 +3,7 @@ import type { IModelPricing } from './types/IModelPricing';
 
 /**
  * USD per million tokens. Verify against https://www.anthropic.com/pricing.
- * Bump LAST_VERIFIED whenever the values are refreshed — a stale table will
+ * Bump LAST_VERIFIED whenever the values are refreshed, a stale table will
  * understate or overstate user costs.
  */
 export const LAST_VERIFIED = '2026-05-12';

@@ -2,7 +2,7 @@ import type { IProfile } from '@/lib/storage/types/IProfile';
 
 /**
  * Heuristic for "is there enough profile here to produce a useful AI ranking?"
- * The threshold is intentionally low — we want ranking to unlock quickly,
+ * The threshold is intentionally low, we want ranking to unlock quickly,
  * just not against a blank slate.
  */
 export function isProfileMeaningful(profile: IProfile | undefined): boolean {

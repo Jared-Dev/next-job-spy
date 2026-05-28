@@ -22,7 +22,7 @@ export function computeCostUsd(
 }
 
 /**
- * Sum two usage stamps — used when a single logical request makes more than
+ * Sum two usage stamps, used when a single logical request makes more than
  * one model call (e.g. a document re-written to satisfy the no-dash rule), so
  * the cost reflects every call.
  */

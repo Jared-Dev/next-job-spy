@@ -37,7 +37,7 @@ function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** The pinned artifact, else the newest — artifacts arrive newest-first. */
+/** The pinned artifact, else the newest, artifacts arrive newest-first. */
 function pickPrimary(list: IArtifact[]): IArtifact | undefined {
   return list.find((a) => a.pinned) ?? list[0];
 }
@@ -102,7 +102,7 @@ export function ApplicationPanel({ job }: IApplicationPanelProps) {
         color: 'teal',
         icon: <IconCheck size={18} />,
         title: 'Marked as applied',
-        message: 'Recorded — with the resume and cover letter on file.',
+        message: 'Recorded, with the resume and cover letter on file.',
       });
     } catch (err) {
       notifications.show({
@@ -157,7 +157,7 @@ export function ApplicationPanel({ job }: IApplicationPanelProps) {
         </Group>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Applied to this role? Record it — the resume and cover letter you
+            Applied to this role? Record it,the resume and cover letter you
             generated get locked to the application, and you can track its
             status from here and the Applications page.
           </Text>

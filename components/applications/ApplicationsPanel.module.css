@@ -1,4 +1,4 @@
-/* The panel is a query container — rows adapt to the panel's own width,
+/* The panel is a query container, rows adapt to the panel's own width,
    so the same component is dense in a dashboard column and roomy full-page. */
 .panel {
   container-type: inline-size;

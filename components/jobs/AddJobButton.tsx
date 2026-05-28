@@ -38,7 +38,7 @@ import type { IJob } from '@/lib/storage/types/IJob';
 
 import type { TAddJobFormValues } from './types/TAddJobFormValues';
 
-/** Current time as whole unix seconds — matches the job table's discoveredAt. */
+/** Current time as whole unix seconds, matches the job table's discoveredAt. */
 function unixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -113,7 +113,7 @@ export function AddJobButton() {
           icon: <IconExclamationCircle size={18} />,
           title: 'Nothing to import',
           message:
-            "Couldn't read job details from that page — fill the form in by hand.",
+            "Couldn't read job details from that page,fill the form in by hand.",
         });
       } else {
         const imported = data.via === 'ai' || data.via === 'structured';
@@ -128,7 +128,7 @@ export function AddJobButton() {
                 : 'Imported what we could',
           message: imported
             ? 'Review the filled fields, then add the job.'
-            : 'Some fields may be blank — review and complete them.',
+            : 'Some fields may be blank,review and complete them.',
         });
       }
     } catch (err) {
@@ -232,7 +232,7 @@ export function AddJobButton() {
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Paste a posting URL and hit Try import to auto-fill — or enter
+              Paste a posting URL and hit Try import to auto-fill,or enter
               everything by hand. A saved job can be ranked and tailored just
               like a sourced one.
             </Text>
@@ -317,7 +317,7 @@ export function AddJobButton() {
                     </Typography>
                   ) : (
                     <Text size="sm" c="dimmed">
-                      Nothing to preview yet — paste or import a description.
+                      Nothing to preview yet,paste or import a description.
                     </Text>
                   )}
                 </Paper>

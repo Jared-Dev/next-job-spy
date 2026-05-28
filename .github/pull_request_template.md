@@ -9,4 +9,4 @@
 - [ ] This contribution is **not** owned by my employer, or my employer has accepted the [Entity CLA](../blob/master/cla/entity.odt).
 - [ ] Any third-party code is identified above, with its source and license.
 - [ ] Any new dependency uses an allowed license (see [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md#dependencies)).
-- [ ] I will accept the [Contributor License Agreement](../blob/master/cla/cla.md) — the bot will prompt on this PR.
+- [ ] I will accept the [Contributor License Agreement](../blob/master/cla/cla.md), the bot will prompt on this PR.

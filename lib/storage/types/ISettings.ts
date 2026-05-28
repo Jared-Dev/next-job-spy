@@ -20,7 +20,7 @@ export const SettingsSchema = z.object({
     .default(EVerificationMode.Thorough),
   /** Cross-check every number in generated content against the profile (zero-token). */
   crossCheckNumbers: z.boolean().default(true),
-  /** Unix seconds — last successful refresh-all timestamp. */
+  /** Unix seconds, last successful refresh-all timestamp. */
   lastRefreshAt: z.number().int().nonnegative().optional(),
   /**
    * Stage 2 of the screening cascade: cheap embedding similarity vs profile.

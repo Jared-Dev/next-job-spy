@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          'Could not fetch that URL — the site may block automated requests (LinkedIn often does). Fill the form in by hand.',
+          'Could not fetch that URL. The site may block automated requests (LinkedIn often does). Fill the form in by hand.',
       },
       { status: 502 },
     );
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ fields: structured, via });
   }
 
-  // Structured data was thin — fall back to an AI extraction pass.
+  // Structured data was thin, so fall back to an AI extraction pass.
   try {
     const pageText = htmlToPlainText(html).slice(0, AI_TEXT_CHARS);
     const { text } = await invokeClaudeAgent({
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     };
     return NextResponse.json({ fields: merged, via: 'ai' });
   } catch (err) {
-    // AI assist failed — return the partial structured parse rather than
+    // AI assist failed; return the partial structured parse rather than
     // discarding it. The import is best-effort by design.
     return NextResponse.json({
       fields: structured,

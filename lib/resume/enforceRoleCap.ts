@@ -15,7 +15,7 @@ const MAX_DETAILED_ROLES = 4;
  * Server-side safety net. The system prompt tells the model to cap the
  * experience array at four entries; this function enforces that promise when
  * the model ignores it. Anything past index three becomes a short addition to
- * the "earlier" line — "Title at Company (dates); …" — so no work history is
+ * the "earlier" line,"Title at Company (dates); …",so no work history is
  * lost, it just stops getting the full bullet treatment.
  */
 export function enforceRoleCap(resume: IResumeDocument): IResumeDocument {
