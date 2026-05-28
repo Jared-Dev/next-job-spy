@@ -14,12 +14,12 @@ export type TStorageAdapter = {
   useSettings: () => ISettings | undefined;
   saveSettings: (settings: Partial<ISettings>) => Promise<void>;
 
-  // Inference API key — hosted writes HttpOnly cookie via /api/key, local writes settings row
+  // Inference API key, hosted writes HttpOnly cookie via /api/key, local writes settings row
   hasApiKey: () => Promise<boolean>;
   setApiKey: (key: string) => Promise<void>;
   clearApiKey: () => Promise<void>;
 
-  // Optional Anthropic Admin API key — used only to query billing/usage (read-only)
+  // Optional Anthropic Admin API key, used only to query billing/usage (read-only)
   hasAdminKey: () => Promise<boolean>;
   setAdminKey: (key: string) => Promise<void>;
   clearAdminKey: () => Promise<void>;
@@ -31,6 +31,11 @@ export type TStorageAdapter = {
   createJob: (job: IJob) => Promise<number>;
   updateJobStatus: (id: number, status: IJob['status']) => Promise<void>;
   updateJobFit: (id: number, fitScore: number, fitNotes: string) => Promise<void>;
+  setJobNoCoverLetter: (id: number, value: boolean) => Promise<void>;
+  setJobStoryRanking: (
+    id: number,
+    ranking: NonNullable<IJob['storyRanking']> | null,
+  ) => Promise<void>;
 
   // Applications (Phase 2/3)
   useApplications: () => IApplication[] | undefined;
@@ -41,4 +46,7 @@ export type TStorageAdapter = {
   useArtifact: (id: number) => IArtifact | undefined;
   saveArtifact: (artifact: IArtifact) => Promise<number>;
   pinArtifact: (id: number, pinned: boolean) => Promise<void>;
+  resignCoverLetterArtifacts: (
+    candidateName: string,
+  ) => Promise<{ updated: number; total: number }>;
 };

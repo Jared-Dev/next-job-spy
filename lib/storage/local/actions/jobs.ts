@@ -51,6 +51,8 @@ function rowToJob(row: typeof schema.job.$inferSelect): IJob {
     priorityBumpedAt: row.priorityBumpedAt ?? undefined,
     livenessCheckedAt: row.livenessCheckedAt ?? undefined,
     desiredSkills: row.desiredSkills ?? undefined,
+    noCoverLetter: row.noCoverLetter ?? undefined,
+    storyRanking: row.storyRanking ?? undefined,
   };
 }
 
@@ -372,6 +374,30 @@ export async function setJobDesiredSkillsAction(
 ): Promise<void> {
   db.update(schema.job)
     .set({ desiredSkills: skills })
+    .where(eq(schema.job.id, id))
+    .run();
+}
+
+export async function setJobNoCoverLetterAction(
+  id: number,
+  value: boolean,
+): Promise<void> {
+  db.update(schema.job)
+    .set({ noCoverLetter: value })
+    .where(eq(schema.job.id, id))
+    .run();
+}
+
+export async function setJobStoryRankingAction(
+  id: number,
+  ranking: {
+    hash: string;
+    items: { storyId: string; why: string }[];
+    rankedAt: number;
+  } | null,
+): Promise<void> {
+  db.update(schema.job)
+    .set({ storyRanking: ranking })
     .where(eq(schema.job.id, id))
     .run();
 }

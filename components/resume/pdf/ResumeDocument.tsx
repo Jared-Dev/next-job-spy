@@ -21,7 +21,7 @@ import {
 
 /**
  * The single "killer resume" PDF document. One design that carries IC,
- * leadership, and generalist candidates — leadership content surfaces via the
+ * leadership, and generalist candidates, leadership content surfaces via the
  * optional "scope" strip on a role; other variation lives in the bullet copy.
  *
  * Layout cues that matter:
@@ -59,7 +59,7 @@ const s = StyleSheet.create({
     lineHeight: 1.45,
     textAlign: 'center',
   },
-  // Links stay readable on screen and in print — same color as surrounding
+  // Links stay readable on screen and in print, same color as surrounding
   // contact text, no underline. PDF metadata makes them clickable.
   link: {
     color: MUTED,
@@ -221,7 +221,7 @@ function RoleHeadBundle({ role }: { role: IResumeRole }) {
   );
 }
 
-/** Everything after the head bundle — each piece wraps individually so a long
+/** Everything after the head bundle, each piece wraps individually so a long
  * role can split across pages without orphaning a single bullet. */
 function RoleRest({ role }: { role: IResumeRole }) {
   const restBullets = role.bullets.slice(1);
@@ -323,7 +323,7 @@ function buildContactItems(contact: IResumeContact): IContactItem[] {
     items.push({ label: contact.phone, href: telHref(contact.phone) });
   }
   if (contact.location) {
-    // Location is not a link — recruiters expect text, and Maps URLs vary.
+    // Location is not a link, recruiters expect text, and Maps URLs vary.
     items.push({ label: contact.location });
   }
   if (contact.site) {
@@ -360,6 +360,13 @@ export function ResumeDocument({
     <Document
       title={documentTitle ?? `${data.name} Resume`}
       author={data.name}
+      // Blank Producer / Creator so the PDF metadata stream carries no library
+      // fingerprint (no "PDFKit", no "react-pdf"). Subject + Keywords are
+      // omitted for the same reason: anything we'd put there would be a tell.
+      producer=""
+      creator=""
+      subject=""
+      keywords=""
     >
       <Page size="LETTER" style={s.page}>
         <View style={s.header}>
@@ -371,7 +378,7 @@ export function ResumeDocument({
 
         {/* Work Experience: section title + first role's head bundle share a
             wrap-false group, so "Work Experience" cannot orphan at the bottom
-            of a page. Subsequent roles wrap normally — a role itself may now
+            of a page. Subsequent roles wrap normally,a role itself may now
             split across pages, but only between bullets. */}
         <View style={s.section}>
           {data.experience[0] ? (

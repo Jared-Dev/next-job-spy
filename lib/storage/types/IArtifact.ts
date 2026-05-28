@@ -18,6 +18,12 @@ export const ArtifactSchema = z.object({
    * standardized name and can leave this empty.
    */
   filename: z.string().optional(),
+  /**
+   * For story-mode cover letters, the id of the source story. Recorded so the
+   * application history can show which story was sent, even after the story
+   * itself is edited or deleted (id may dangle).
+   */
+  storyId: z.string().optional(),
   usage: UsageStampSchema.optional(),
   createdAt: z.number().int(),
   pinned: z.boolean().optional(),

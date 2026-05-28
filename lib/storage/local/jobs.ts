@@ -9,6 +9,8 @@ import {
   createJobAction,
   getJobAction,
   listJobsAction,
+  setJobNoCoverLetterAction,
+  setJobStoryRankingAction,
   updateJobFitAction,
   updateJobStatusAction,
   upsertJobsAction,
@@ -93,5 +95,21 @@ export async function updateJobFit(
   fitNotes: string,
 ): Promise<void> {
   await updateJobFitAction(id, fitScore, fitNotes);
+  emitRefresh(REFRESH_EVENTS.Jobs);
+}
+
+export async function setJobNoCoverLetter(
+  id: number,
+  value: boolean,
+): Promise<void> {
+  await setJobNoCoverLetterAction(id, value);
+  emitRefresh(REFRESH_EVENTS.Jobs);
+}
+
+export async function setJobStoryRanking(
+  id: number,
+  ranking: NonNullable<IJob['storyRanking']> | null,
+): Promise<void> {
+  await setJobStoryRankingAction(id, ranking);
   emitRefresh(REFRESH_EVENTS.Jobs);
 }

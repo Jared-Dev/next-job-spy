@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Resume view — /resume/[artifactId]. A numeric param loads a generated resume
+ * Resume view at /resume/[artifactId]. A numeric param loads a generated resume
  * artifact and renders it. The literal `sample` param previews the static
  * sample document, kept for design iteration. Renders chrome-free so the page
  * works equally well as a standalone view and as the body of an intercepting

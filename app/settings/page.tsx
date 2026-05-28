@@ -2,6 +2,7 @@
 
 import { Container, Paper, Stack } from '@mantine/core';
 
+import { CoverLetterMaintenance } from '@/components/settings/CoverLetterMaintenance';
 import { DataPortability } from '@/components/settings/DataPortability';
 import { SettingsForm } from '@/components/settings/SettingsForm';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -17,6 +18,7 @@ export default function SettingsPage() {
         <Paper p="lg" withBorder>
           <SettingsForm />
         </Paper>
+        <CoverLetterMaintenance />
         <DataPortability />
       </Stack>
     </Container>

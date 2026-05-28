@@ -8,6 +8,7 @@ import {
   getArtifactAction,
   listArtifactsAction,
   pinArtifactAction,
+  resignCoverLetterArtifactsAction,
   saveArtifactAction,
 } from './actions/artifacts';
 import { REFRESH_EVENTS, emitRefresh } from './refreshEvents';
@@ -69,4 +70,12 @@ export async function saveArtifact(artifact: IArtifact): Promise<number> {
 export async function pinArtifact(id: number, pinned: boolean): Promise<void> {
   await pinArtifactAction(id, pinned);
   emitRefresh(REFRESH_EVENTS.Artifacts);
+}
+
+export async function resignCoverLetterArtifacts(
+  candidateName: string,
+): Promise<{ updated: number; total: number }> {
+  const result = await resignCoverLetterArtifactsAction(candidateName);
+  if (result.updated > 0) emitRefresh(REFRESH_EVENTS.Artifacts);
+  return result;
 }
