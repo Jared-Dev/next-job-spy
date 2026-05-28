@@ -3,7 +3,10 @@
 import { Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { useEffect, useState } from 'react';
 
-import { REFRESH_EVENTS, emitRefresh } from '@/lib/storage/local/refreshEvents';
+import {
+  PENDING_IMPORT_STORAGE_KEY,
+  type IPendingImport,
+} from '@/lib/jobs/importJob/pendingImport';
 
 interface IPayload {
   url?: string;
@@ -17,7 +20,7 @@ interface IPayload {
   site?: string;
 }
 
-const ALLOWED_FIELDS = new Set([
+const ALLOWED_FIELDS = new Set<keyof IPayload>([
   'url',
   'title',
   'company',
@@ -32,26 +35,50 @@ const ALLOWED_FIELDS = new Set([
 /**
  * Receiver page for the bookmarklet handoff. The bookmarklet (running
  * on a third-party origin like linkedin.com) opens this page in a new
- * tab and postMessages the extracted job fields across. We then build
- * a same-origin form POST to /api/import-job/from-page, which sits
- * inside our own `form-action 'self'` boundary, and let the browser
- * follow the 303 redirect into /jobs/<id>.
- *
- * Security: postMessage from anywhere is accepted (we don't know the
- * opener's origin in advance), but we only pull a fixed allowlist of
- * string fields out of the payload. The receiving API route validates
- * with zod. The user is on their own localhost; the blast radius of a
- * malicious page driving this flow is one bogus job row.
+ * tab and postMessages the extracted job fields across. We POST the
+ * payload to /api/import-job/from-page, which layers JSON-LD + Mozilla
+ * Readability + structured parsing over what the bookmarklet caught,
+ * and returns merged fields. We stash those in sessionStorage and
+ * navigate to /jobs, where AddJobButton opens its modal pre-populated.
+ * The user reviews and saves through the existing manual-add flow,
+ * which makes any location/company miss easy to fix before the job
+ * lands in the DB.
  */
 export default function ClipPage() {
-  const [status, setStatus] = useState<'waiting' | 'received' | 'orphan'>('waiting');
+  const [status, setStatus] = useState<
+    'waiting' | 'extracting' | 'orphan' | 'error'
+  >('waiting');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
+    let handled = false;
+
+    async function processPayload(incoming: Record<string, unknown>) {
+      const formData = new FormData();
+      for (const [k, v] of Object.entries(incoming)) {
+        if (!ALLOWED_FIELDS.has(k as keyof IPayload)) continue;
+        if (typeof v === 'string') formData.append(k, v);
+      }
+      const res = await fetch('/api/import-job/from-page', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Server returned ${res.status}`);
+      }
+      const data = (await res.json()) as IPendingImport;
+      sessionStorage.setItem(PENDING_IMPORT_STORAGE_KEY, JSON.stringify(data));
+      window.location.href = '/jobs';
+    }
+
     function onMessage(e: MessageEvent) {
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.type !== 'njs-payload') return;
       const incoming = e.data.data as Record<string, unknown>;
       if (!incoming || typeof incoming !== 'object') return;
+      if (handled) return;
+      handled = true;
       // Ack the sender so it stops re-posting; the opener uses a polling
       // interval since it has no other way to know when we've mounted.
       if (e.source && 'postMessage' in e.source) {
@@ -60,31 +87,13 @@ export default function ClipPage() {
           { targetOrigin: e.origin || '*' },
         );
       }
-      setStatus('received');
-      const payload: IPayload = {};
-      for (const [k, v] of Object.entries(incoming)) {
-        if (!ALLOWED_FIELDS.has(k)) continue;
-        if (typeof v === 'string') (payload as Record<string, string>)[k] = v;
-      }
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/api/import-job/from-page';
-      form.enctype = 'application/x-www-form-urlencoded';
-      form.acceptCharset = 'utf-8';
-      form.style.display = 'none';
-      for (const [k, v] of Object.entries(payload)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = k;
-        input.value = v;
-        form.appendChild(input);
-      }
-      document.body.appendChild(form);
-      // Notify any other open Next Job Spy tab (typically /jobs) that the
-      // job list is about to change. The broadcast has to happen BEFORE
-      // form.submit, since the submit navigates this tab away immediately.
-      emitRefresh(REFRESH_EVENTS.Jobs);
-      form.submit();
+      setStatus('extracting');
+      processPayload(incoming).catch((err: unknown) => {
+        setStatus('error');
+        setErrorMessage(
+          err instanceof Error ? err.message : 'Unknown extraction error',
+        );
+      });
     }
     window.addEventListener('message', onMessage);
 
@@ -112,15 +121,27 @@ export default function ClipPage() {
               bookmark, and this page will fill in.
             </Text>
           </>
+        ) : status === 'error' ? (
+          <>
+            <Title order={3}>Could not read that page</Title>
+            <Text c="red" ta="center">
+              {errorMessage}
+            </Text>
+            <Text c="dimmed" ta="center" size="sm">
+              Open the Jobs page and click Add job to fill the form in by hand.
+            </Text>
+          </>
         ) : (
           <>
             <Loader />
             <Title order={3}>
-              {status === 'received' ? 'Importing job…' : 'Waiting for posting…'}
+              {status === 'extracting'
+                ? 'Reading the posting…'
+                : 'Waiting for posting…'}
             </Title>
             <Text c="dimmed" ta="center">
-              {status === 'received'
-                ? 'Saving and kicking off Claude scoring. This tab will redirect to the new job in a moment.'
+              {status === 'extracting'
+                ? 'Pulling title, company, location and description. You can review and edit before saving.'
                 : 'Click the Import bookmarklet in your other tab to hand off the posting.'}
             </Text>
           </>

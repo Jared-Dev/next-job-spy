@@ -1,24 +1,11 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-import { agentErrorToResponse } from '@/lib/ai/agentErrorToResponse';
-import { invokeClaudeAgent } from '@/lib/ai/invokeClaudeAgent';
-import { parseJsonFromAgent } from '@/lib/ai/parseJsonFromAgent';
-import { RANK_SYSTEM_PROMPT } from '@/lib/ai/prompts';
-import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
 import { htmlToMarkdown } from '@/lib/jobs/htmlToMarkdown';
 import { extractWithReadability } from '@/lib/jobs/importJob/extractWithReadability';
 import { parseJobPage } from '@/lib/jobs/importJob/parseJobPage';
 import type { IImportedJob } from '@/lib/jobs/importJob/types/IImportedJob';
-import { inferCountry } from '@/lib/jobs/inferCountry';
-import { isProfileMeaningful } from '@/lib/profile/isProfileMeaningful';
-import { createJobAction, updateJobFitAction } from '@/lib/storage/local/actions/jobs';
-import { getProfileAction } from '@/lib/storage/local/actions/profile';
-import { EJobStatus } from '@/lib/storage/types/EJobStatus';
-import { ESourceId } from '@/lib/storage/types/ESourceId';
-import type { IJob } from '@/lib/storage/types/IJob';
-import { z } from 'zod';
 
-const RANK_DESCRIPTION_CAP = 4000;
 const MAX_HTML_CHARS = 800_000;
 
 const FormSchema = z.object({
@@ -94,63 +81,15 @@ function cleanTitleAndCompany(merged: IImportedJob): IImportedJob {
   return { ...merged, title, company };
 }
 
-const RankResponseSchema = z.object({
-  results: z
-    .array(
-      z.object({
-        id: z.string(),
-        fitScore: z.number().int().min(0).max(100),
-        fitNotes: z.string(),
-      }),
-    )
-    .min(1),
-});
-
 /**
- * Score the freshly-imported job in the background. Mirrors the
- * client-side fire-and-forget in AddJobButton; the redirect already
- * returned, so any failure here is silently dropped.
+ * Receives a payload from the bookmarklet (via the /clip handoff page)
+ * and returns the merged extraction as JSON. The flow is preview-only:
+ * /clip stashes the response in sessionStorage and navigates to /jobs,
+ * where AddJobButton opens its modal pre-populated. The user reviews
+ * and saves through the existing manual-add path, which handles the
+ * actual job creation and Claude scoring. That keeps location/company
+ * mistakes recoverable instead of landing them in the DB.
  */
-async function scoreInBackground(jobId: number, job: IJob): Promise<void> {
-  try {
-    const profile = await getProfileAction();
-    if (!isProfileMeaningful(profile ?? undefined)) return;
-    const description = job.descriptionMd ?? '';
-    const truncated =
-      description.length > RANK_DESCRIPTION_CAP
-        ? `${description.slice(0, RANK_DESCRIPTION_CAP)}\n\n[Description truncated by server at ${RANK_DESCRIPTION_CAP} chars; score what is shown.]`
-        : description;
-    const userPrompt = `CANDIDATE PROFILE:\n${JSON.stringify(profile)}\n\nJOBS TO RANK:\n${JSON.stringify([
-      {
-        id: String(jobId),
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        description: truncated,
-      },
-    ])}`;
-    const { text } = await invokeClaudeAgent({
-      systemPrompt: `${RANK_SYSTEM_PROMPT}\n\nOUTPUT FORMAT: Reply with JSON only matching { "results": [ { "id": string, "fitScore": int 0-100, "fitNotes": string } ] }. No prose, no markdown.`,
-      userPrompt,
-      model: EAnthropicModel.Haiku45,
-    });
-    const parsed = parseJsonFromAgent(text, RankResponseSchema);
-    const result = parsed.results[0];
-    if (!result) return;
-    await updateJobFitAction(jobId, result.fitScore, result.fitNotes);
-  } catch (err) {
-    // Best-effort. The job still exists; the user can hit Rank from /jobs.
-    console.warn(
-      '[njs:bookmarklet] background scoring failed',
-      err instanceof Error ? err.message : err,
-    );
-  }
-}
-
-function unixSeconds(): number {
-  return Math.floor(Date.now() / 1000);
-}
-
 export async function POST(request: Request) {
   let form: FormData;
   try {
@@ -185,51 +124,8 @@ export async function POST(request: Request) {
   }
   merged = cleanTitleAndCompany(merged);
 
-  if (!merged.title || !merged.descriptionMd) {
-    return NextResponse.json(
-      {
-        error:
-          "Couldn't read enough off that page. Open the Add job modal in Next Job Spy and fill the fields in by hand.",
-      },
-      { status: 422 },
-    );
-  }
-
-  const now = unixSeconds();
-  const location = merged.location?.trim();
-  const job: IJob = {
-    source: ESourceId.Manual,
-    sourceId: crypto.randomUUID(),
+  return NextResponse.json({
     url: parsed.url,
-    title: merged.title.trim(),
-    company: (merged.company ?? 'Unknown').trim(),
-    location: location || undefined,
-    country: inferCountry(location ?? ''),
-    remote: merged.remote,
-    descriptionMd: merged.descriptionMd.trim(),
-    discoveredAt: now,
-    status: EJobStatus.Saved,
-  };
-
-  let id: number;
-  try {
-    id = await createJobAction(job);
-  } catch (err) {
-    return agentErrorToResponse(err);
-  }
-
-  // Block on scoring (with a hard ceiling) so the user lands on a
-  // /jobs/<id> page that already shows the fit score. Without this the
-  // job appears unscored and stays that way until the user manually
-  // refreshes, because server-side updateJobFitAction doesn't fire the
-  // client-side refresh event. 20s is well over the typical Haiku run
-  // (~3-6s) and short enough that a stalled call doesn't keep the user
-  // staring at the /clip loader forever.
-  const scoringDeadline = new Promise<void>((resolve) => {
-    setTimeout(resolve, 20_000);
+    fields: merged,
   });
-  await Promise.race([scoreInBackground(id, job), scoringDeadline]);
-
-  const redirectUrl = new URL(`/jobs/${id}`, request.url);
-  return NextResponse.redirect(redirectUrl, 303);
 }
