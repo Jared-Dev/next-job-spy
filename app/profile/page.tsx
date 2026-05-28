@@ -1,6 +1,6 @@
 'use client';
 
-import { Container } from '@mantine/core';
+import { Container, Stack } from '@mantine/core';
 
 import { ProfileForm } from '@/components/profile/ProfileForm';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -24,7 +24,9 @@ export default function ProfilePage() {
             : 'Fill this in once. Per-job ATS-optimized resumes get generated from it.'
         }
       />
-      <ProfileForm initial={profile} />
+      <Stack gap="xl">
+        <ProfileForm initial={profile} />
+      </Stack>
     </Container>
   );
 }

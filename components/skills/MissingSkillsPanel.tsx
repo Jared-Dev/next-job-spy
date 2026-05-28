@@ -67,7 +67,7 @@ export function MissingSkillsPanel({ job }: { job: IJob }) {
   const [error, setError] = useState<string | null>(null);
 
   // Auto-extract once on first open if the cache is empty. Skip silently when
-  // there's no description to extract from — render handles that case.
+  // there's no description to extract from, render handles that case.
   // State transitions all happen via Promise callbacks (no synchronous setState
   // inside the effect body).
   useEffect(() => {

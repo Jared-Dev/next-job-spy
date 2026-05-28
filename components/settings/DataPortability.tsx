@@ -57,7 +57,7 @@ export function DataPortability(_props: IDataPortabilityProps) {
       color: 'teal',
       icon: <IconCheck size={18} />,
       title: 'Exported',
-      message: 'API key not included — set it again on import.',
+      message: 'API key not included, set it again on import.',
     });
   }
 

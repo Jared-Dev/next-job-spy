@@ -77,7 +77,7 @@ type TDriverState =
   | { phase: 'screening'; activeCount: number }
   | { phase: 'error'; message: string };
 
-type TWorkerPhase = 'loading' | 'ready' | 'screening' | 'error';
+type TWorkerPhase = 'loading' | 'ready' | 'screening' | 'ranking' | 'error';
 
 const QUEUE_REPOLL_MS = 10_000;
 /**
@@ -131,7 +131,17 @@ const EXIT_ANIMATION_BATCH_BAIL = 5;
 
 export function LocalScreenDriver() {
   const settings = adapter.useSettings();
-  const { setCurrentLocalJobIds, markDropped } = useScreeningStatus();
+  const {
+    setCurrentLocalJobIds,
+    markDropped,
+    pendingRankRequest,
+    resolveRankRequest,
+  } = useScreeningStatus();
+  // Has the current pendingRankRequest already been dispatched to a worker?
+  // Cleared when a 'ranking' / 'rankingError' message comes back, or when the
+  // pendingRankRequest changes (caller submitted a fresh one).
+  const rankClaimedRef = useRef(false);
+  const currentRankRequestIdRef = useRef<string | null>(null);
   // The auto-tune gate gives us isSettled. While unsettled we want a
   // single worker: (a) batch_size=1 during learning means N-1 workers
   // are starved anyway; (b) more importantly, spawning N workers
@@ -263,13 +273,44 @@ export function LocalScreenDriver() {
     setOldestJobStartedAt(null);
   }, []);
 
+  // Pending-rank-request snapshot the dispatcher reads atomically. Plain
+  // ref so the dispatcher's useCallback doesn't churn on every context
+  // refresh while it's mid-claim.
+  const pendingRankRequestRef = useRef(pendingRankRequest);
+  useEffect(() => {
+    pendingRankRequestRef.current = pendingRankRequest;
+  }, [pendingRankRequest]);
+
   // Dispatch next job to a specific worker, if it's ready and there's
-  // work to do.
+  // work to do. Ranking requests take priority over screening: when one
+  // is pending, one worker claims it and no screening dispatches until
+  // it resolves.
   const dispatchToWorker = useCallback(
     async (idx: number) => {
       const worker = workersRef.current[idx];
       if (!worker) return;
       if (workerPhaseRef.current[idx] !== 'ready') return;
+
+      // Rank-first dispatch. The user told us: warm engine, pause
+      // screening, run rank, resume. Implementation: when a request is
+      // pending, only one worker picks it up (rankClaimedRef gate);
+      // others return without claiming a screening job, so screening is
+      // effectively paused for the duration of the rank.
+      const rankReq = pendingRankRequestRef.current;
+      if (rankReq) {
+        if (!rankClaimedRef.current) {
+          rankClaimedRef.current = true;
+          workerPhaseRef.current[idx] = 'ranking';
+          recomputeAggregateState();
+          worker.postMessage({
+            type: 'rank',
+            requestId: rankReq.requestId,
+            job: rankReq.job,
+            stories: rankReq.stories,
+          } satisfies TWorkerInbound);
+        }
+        return;
+      }
 
       // Claim a job under the shared lock so two workers can't pick
       // the same row. The lock only covers SELECT+claim; postMessage
@@ -369,6 +410,26 @@ export function LocalScreenDriver() {
     dispatchToWorkerRef.current = dispatchToWorker;
   }, [dispatchToWorker]);
 
+  // React to new ranking requests. When one appears (and isn't a stale
+  // re-render of the same id), reset the claim flag and poke every ready
+  // worker so whichever is idle picks it up.
+  useEffect(() => {
+    if (!pendingRankRequest) {
+      currentRankRequestIdRef.current = null;
+      rankClaimedRef.current = false;
+      return;
+    }
+    if (currentRankRequestIdRef.current !== pendingRankRequest.requestId) {
+      currentRankRequestIdRef.current = pendingRankRequest.requestId;
+      rankClaimedRef.current = false;
+      for (let i = 0; i < workerPhaseRef.current.length; i += 1) {
+        if (workerPhaseRef.current[i] === 'ready') {
+          void dispatchToWorkerRef.current(i);
+        }
+      }
+    }
+  }, [pendingRankRequest]);
+
   // Build a message handler bound to a specific worker slot.
   const makeMessageHandler = useCallback(
     (idx: number) =>
@@ -416,6 +477,37 @@ export function LocalScreenDriver() {
             setLastVerdictAt(Date.now());
             const depth = await getLocalQueueDepthAction();
             setQueueDepth(depth);
+            recomputeAggregateState();
+            await dispatchToWorker(idx);
+            break;
+          }
+          case 'ranking': {
+            resolveRankRequest({
+              ok: true,
+              requestId: msg.requestId,
+              items: msg.items,
+            });
+            rankClaimedRef.current = false;
+            workerPhaseRef.current[idx] = 'ready';
+            recomputeAggregateState();
+            // Screening resumes automatically: pendingRankRequest is now null
+            // so the next dispatch claims a screening job instead.
+            await dispatchToWorker(idx);
+            break;
+          }
+          case 'rankingError': {
+            console.warn(
+              '[njs:local-driver] ranking error:',
+              msg.requestId,
+              msg.message,
+            );
+            resolveRankRequest({
+              ok: false,
+              requestId: msg.requestId,
+              error: msg.message,
+            });
+            rankClaimedRef.current = false;
+            workerPhaseRef.current[idx] = 'ready';
             recomputeAggregateState();
             await dispatchToWorker(idx);
             break;
@@ -481,7 +573,13 @@ export function LocalScreenDriver() {
           }
         }
       },
-    [dispatchToWorker, markDropped, publishInFlight, recomputeAggregateState],
+    [
+      dispatchToWorker,
+      markDropped,
+      publishInFlight,
+      recomputeAggregateState,
+      resolveRankRequest,
+    ],
   );
 
   // Lifecycle: spawn N workers when the user has the local screen

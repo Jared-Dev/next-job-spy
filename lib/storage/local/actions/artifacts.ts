@@ -2,6 +2,7 @@
 
 import { desc, eq } from 'drizzle-orm';
 
+import { ensureSigned } from '@/lib/coverLetter/ensureSigned';
 import { db, schema } from '@/lib/storage/local/sqlite/Database';
 import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
 import type { IArtifact } from '@/lib/storage/types/IArtifact';
@@ -18,6 +19,7 @@ function rowToArtifact(row: typeof schema.artifact.$inferSelect): IArtifact {
     inputHash: row.inputHash ?? undefined,
     content: row.content,
     filename: row.filename ?? undefined,
+    storyId: row.storyId ?? undefined,
     usage: (row.usage as IUsageStamp | null) ?? undefined,
     createdAt: row.createdAt,
     pinned: row.pinned ?? undefined,
@@ -50,6 +52,7 @@ export async function saveArtifactAction(artifact: IArtifact): Promise<number> {
         inputHash: artifact.inputHash ?? null,
         content: artifact.content,
         filename: artifact.filename ?? null,
+        storyId: artifact.storyId ?? null,
         usage: artifact.usage ?? null,
         pinned: artifact.pinned ?? null,
       })
@@ -68,6 +71,7 @@ export async function saveArtifactAction(artifact: IArtifact): Promise<number> {
       inputHash: artifact.inputHash ?? null,
       content: artifact.content,
       filename: artifact.filename ?? null,
+      storyId: artifact.storyId ?? null,
       usage: artifact.usage ?? null,
       pinned: artifact.pinned ?? null,
       createdAt: artifact.createdAt,
@@ -81,4 +85,40 @@ export async function pinArtifactAction(id: number, pinned: boolean): Promise<vo
     .set({ pinned })
     .where(eq(schema.artifact.id, id))
     .run();
+}
+
+/**
+ * One-shot migration for cover-letter artifacts that pre-date the auto-sign
+ * pass on /api/ai/cover-letter. Walks every cover-letter row, runs ensureSigned
+ * against the candidate name, and only writes back the rows whose content
+ * actually changed. Returns { updated, total } so the caller can show a
+ * useful toast.
+ *
+ * Safe to run repeatedly: already-signed letters are a no-op.
+ */
+export async function resignCoverLetterArtifactsAction(
+  candidateName: string,
+): Promise<{ updated: number; total: number }> {
+  const name = candidateName.trim();
+  if (!name) return { updated: 0, total: 0 };
+
+  const rows = db
+    .select()
+    .from(schema.artifact)
+    .where(eq(schema.artifact.kind, EArtifactKind.CoverLetter))
+    .all();
+
+  let updated = 0;
+  for (const row of rows) {
+    const signed = ensureSigned(row.content, name);
+    if (signed !== row.content) {
+      db.update(schema.artifact)
+        .set({ content: signed })
+        .where(eq(schema.artifact.id, row.id))
+        .run();
+      updated += 1;
+    }
+  }
+
+  return { updated, total: rows.length };
 }

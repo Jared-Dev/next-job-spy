@@ -251,7 +251,7 @@ function ParamFieldEditor({ field, state, onChange }: IParamFieldEditorProps) {
         >
           the board host
         </Anchor>{' '}
-        for the right slug — it&apos;s the path segment after the domain.
+        for the right slug,it&apos;s the path segment after the domain.
       </Text>
     </Stack>
   );

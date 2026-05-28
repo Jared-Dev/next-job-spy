@@ -76,7 +76,7 @@ export function ApplicationsPanel({ limit }: IApplicationsPanelProps) {
                   {job?.title ?? 'Job'}
                 </Anchor>
                 <Text size="xs" c="dimmed" truncate>
-                  {job?.company ?? '—'}
+                  {job?.company ?? '-'}
                 </Text>
               </div>
               <div className={styles.meta}>

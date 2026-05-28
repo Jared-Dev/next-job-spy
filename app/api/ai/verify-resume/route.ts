@@ -37,7 +37,7 @@ function unreferencedNumbers(content: string, profileText: string): string[] {
   const flagged = new Set<string>();
   for (const raw of matches) {
     const bare = raw.replace(/,/g, '');
-    if (bare.replace(/\D/g, '').length < 2) continue; // skip lone digits — too noisy
+    if (bare.replace(/\D/g, '').length < 2) continue; // skip lone digits, too noisy
     if (!profileText.includes(raw) && !profileText.includes(bare)) {
       flagged.add(raw);
     }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
   const userPrompt = buildPrompt(body.content, body.profile);
 
-  // Zero-token deterministic scan — runs regardless of model when enabled,
+  // Zero-token deterministic scan that runs regardless of model when enabled,
   // because even the stronger model can overlook an invented number.
   const numbersOff = body.crossCheckNumbers
     ? unreferencedNumbers(body.content, JSON.stringify(body.profile))
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         modelFindings = fast;
         modelUsed = EAnthropicModel.Haiku45;
       } else {
-        // Evidence of risk — escalate to the stronger model.
+        // Evidence of risk: escalate to the stronger model.
         modelFindings = await modelCheck(EAnthropicModel.Sonnet46, userPrompt);
         modelUsed = EAnthropicModel.Sonnet46;
         escalated = true;
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       .filter((n) => !modelFindings.some((f) => f.claim.includes(n)))
       .map((n) => ({
         claim: n,
-        issue: "This number isn't in your profile — confirm it's accurate.",
+        issue: "This number isn't in your profile, confirm it's accurate.",
       }));
 
     const result: IVerifyResult = {

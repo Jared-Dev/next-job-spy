@@ -7,7 +7,7 @@
  *   - a license on neither list (new!) -> fail, asking you to classify it
  *   - a license on the allow list      -> pass
  *
- * Packages listed in `allowPackages` are exempt — e.g. a first-party SDK that
+ * Packages listed in `allowPackages` are exempt, e.g. a first-party SDK that
  * ships without a standard SPDX license field.
  *
  * Run it with:  pnpm check-licenses
@@ -58,7 +58,7 @@ const describe = ({ license, names }) => {
 };
 
 if (denied.length === 0 && unclassified.length === 0) {
-  console.log('OK — every dependency license is classified and allowed.');
+  console.log('OK,every dependency license is classified and allowed.');
   process.exit(0);
 }
 
@@ -68,7 +68,7 @@ if (denied.length > 0) {
 }
 if (unclassified.length > 0) {
   console.error(
-    '\nUnclassified licenses — add each to "allow" or "deny" in license-policy.json:',
+    '\nUnclassified licenses,add each to "allow" or "deny" in license-policy.json:',
   );
   console.error(unclassified.map(describe).join('\n'));
 }

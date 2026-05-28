@@ -10,10 +10,18 @@ import {
   setAdminKey,
   setApiKey,
 } from './apiKey';
-import { pinArtifact, saveArtifact, useArtifact, useArtifacts } from './artifacts';
+import {
+  pinArtifact,
+  resignCoverLetterArtifacts,
+  saveArtifact,
+  useArtifact,
+  useArtifacts,
+} from './artifacts';
 import { upsertApplication, useApplications } from './applications';
 import {
   createJob,
+  setJobNoCoverLetter,
+  setJobStoryRanking,
   updateJobFit,
   updateJobStatus,
   upsertJobs,
@@ -40,10 +48,13 @@ export const localAdapter: TStorageAdapter = {
   createJob,
   updateJobStatus,
   updateJobFit,
+  setJobNoCoverLetter,
+  setJobStoryRanking,
   useApplications,
   upsertApplication,
   useArtifacts,
   useArtifact,
   saveArtifact,
   pinArtifact,
+  resignCoverLetterArtifacts,
 };

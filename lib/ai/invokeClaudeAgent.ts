@@ -99,13 +99,13 @@ export async function invokeClaudeAgent(
     try {
       q.close();
     } catch {
-      // ignore — already closed
+      // ignore, already closed
     }
   }
 
   if (resultError) throw new Error(resultError);
   if (!rawUsage) {
-    throw new Error('Claude Code did not return usage info — call may have aborted.');
+    throw new Error('Claude Code did not return usage info,call may have aborted.');
   }
 
   return { text, usage: stampUsage(resolvedModel || 'claude-subscription', rawUsage) };

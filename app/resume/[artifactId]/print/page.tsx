@@ -1,21 +1,22 @@
 'use client';
 
+import { Box, Center, Loader, Text } from '@mantine/core';
 import { redirect } from 'next/navigation';
 import { use, useEffect } from 'react';
 
-import { COVER_LETTER_PRINT_CSS } from '@/lib/coverLetter/coverLetterPrintCss';
-import { markdownToHtml } from '@/lib/resume/markdownToHtml';
+import { CoverLetterStage } from '@/components/coverLetter/CoverLetterStage';
 import { adapter } from '@/lib/storage';
 import { EArtifactKind } from '@/lib/storage/types/EArtifactKind';
 
 /**
- * Print view for cover-letter artifacts, which are Markdown. Resume artifacts
- * are structured documents now, so they redirect to /resume/[id] — the
- * react-pdf preview with its own export.
+ * Cover-letter view at /resume/[artifactId]/print. Despite the route name, the
+ * browser's "Save as PDF" path is no longer used: the page renders the letter
+ * through @react-pdf so the exported file's metadata stream (Producer,
+ * Creator, Subject, Keywords) is fully under our control and free of any
+ * library or browser fingerprint.
  *
- * The document title is set from artifact.filename when present, so when the
- * reader uses "Save as PDF" the default filename is the clickbait one the
- * model produced.
+ * Resume artifacts redirect to /resume/[id], which has its own react-pdf
+ * stage; this page is cover-letter-only.
  */
 export default function PrintArtifactPage({
   params,
@@ -25,6 +26,7 @@ export default function PrintArtifactPage({
   const { artifactId } = use(params);
   const id = Number(artifactId);
   const artifact = adapter.useArtifact(id);
+  const profile = adapter.useProfile();
 
   useEffect(() => {
     if (artifact?.filename) {
@@ -38,20 +40,36 @@ export default function PrintArtifactPage({
     return undefined;
   }, [artifact?.filename]);
 
-  if (artifact === undefined) {
-    return null;
+  if (artifact === undefined || profile === undefined) {
+    return (
+      <Center h="100vh">
+        <Loader size="sm" />
+      </Center>
+    );
+  }
+
+  if (!artifact) {
+    return (
+      <Center h="100vh">
+        <Text size="sm" c="dimmed">Cover letter not found.</Text>
+      </Center>
+    );
   }
 
   if (artifact.kind !== EArtifactKind.CoverLetter) {
     redirect(`/resume/${id}`);
   }
 
-  const html = markdownToHtml(artifact.content);
+  const candidateName = profile?.fullName?.trim() || 'Candidate';
+  const filename = artifact.filename ?? 'Cover Letter.pdf';
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: COVER_LETTER_PRINT_CSS }} />
-      <div className="cover-letter" dangerouslySetInnerHTML={{ __html: html }} />
-    </>
+    <Box style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <CoverLetterStage
+        markdown={artifact.content}
+        candidateName={candidateName}
+        filename={filename}
+      />
+    </Box>
   );
 }

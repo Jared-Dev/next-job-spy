@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { CvInterviewMessageSchema } from '@/lib/cv/types/ICvInterviewMessage';
+import { CvStorySchema } from '@/lib/cv/types/ICvStory';
+
 import { CareerContextSchema } from './ICareerContext';
 import { EducationEntrySchema } from './IEducationEntry';
 import { PersonalSiteSchema } from './IPersonalSite';
@@ -37,7 +40,7 @@ export const ProfileSchema = z.object({
     .string()
     .optional()
     .describe(
-      'One short, specific line of personal interests/hobbies — the more memorable and specific the better. Used to humanize the candidate on resumes and cover letters.',
+      'One short, specific line of personal interests/hobbies,the more memorable and specific the better. Used to humanize the candidate on resumes and cover letters.',
     ),
   preferences: PreferencesSchema.optional(),
   careerContext: CareerContextSchema.optional(),
@@ -47,6 +50,17 @@ export const ProfileSchema = z.object({
    * lowercase for case-insensitive matching.
    */
   dismissedSkills: z.array(z.string()).optional(),
+  /**
+   * Saved cover-letter stories. The candidate can have several and pick the
+   * most relevant one per job. Produced by the interview chat or written by
+   * hand on /profile.
+   */
+  cvStories: z.array(CvStorySchema).optional(),
+  /**
+   * Running transcript of the CV interview chat. Persisted so the user can
+   * close the tab and return. The chat is on /profile.
+   */
+  cvInterviewTranscript: z.array(CvInterviewMessageSchema).optional(),
   /** The raw Markdown the profile was imported from, kept for re-distillation. */
   sourceMarkdown: z.string().optional(),
 });

@@ -3,7 +3,7 @@
  * Handles the subset Claude actually emits per our templates: headings,
  * paragraphs, lists, bold, italic, links, horizontal rules.
  *
- * Inline styling is intentionally avoided — the print stylesheet owns layout.
+ * Inline styling is intentionally avoided, the print stylesheet owns layout.
  */
 const escapeHtml = (s: string): string =>
   s

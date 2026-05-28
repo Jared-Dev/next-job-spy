@@ -34,8 +34,15 @@ export function hashCoverLetterInputs(parts: {
   resumeContext: string;
   model: string;
   directive: string;
+  mode: 'story' | 'standard';
+  storyId?: string;
+  storyContent?: string;
 }): string {
+  const storyPart =
+    parts.mode === 'story'
+      ? `story:${parts.storyId ?? ''}|${parts.storyContent ?? ''}`
+      : 'standard';
   return cyrb53(
-    `cover|${parts.model}|${parts.jobTitle}|${parts.jobDescription}|${parts.resumeContext}|${parts.directive}|${JSON.stringify(parts.profile)}`,
+    `cover|${parts.model}|${parts.mode}|${storyPart}|${parts.jobTitle}|${parts.jobDescription}|${parts.resumeContext}|${parts.directive}|${JSON.stringify(parts.profile)}`,
   );
 }

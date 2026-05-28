@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS profile (
   achievements    TEXT,
   for_fun         TEXT,
   dismissed_skills TEXT,
+  cv_stories      TEXT,
+  cv_interview_transcript TEXT,
   preferences     TEXT,
   career_context  TEXT,
   source_markdown TEXT,
@@ -141,7 +143,7 @@ function migrate(sqlite: TSqlite) {
   if (!hasJobCol('language')) {
     sqlite.exec('ALTER TABLE job ADD COLUMN language TEXT');
   }
-  // Idempotent — safe to run on every boot once the column exists.
+  // Idempotent, safe to run on every boot once the column exists.
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_job_country ON job(country)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_job_language ON job(language)');
 
@@ -175,6 +177,12 @@ function migrate(sqlite: TSqlite) {
   }
   if (!hasJobCol('desired_skills')) {
     sqlite.exec('ALTER TABLE job ADD COLUMN desired_skills TEXT');
+  }
+  if (!hasJobCol('no_cover_letter')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN no_cover_letter INTEGER');
+  }
+  if (!hasJobCol('story_ranking')) {
+    sqlite.exec('ALTER TABLE job ADD COLUMN story_ranking TEXT');
   }
   sqlite.exec(
     'CREATE INDEX IF NOT EXISTS idx_job_pipeline_status ON job(pipeline_status)',
@@ -220,10 +228,22 @@ function migrate(sqlite: TSqlite) {
   if (!profileCols.some((c) => c.name === 'dismissed_skills')) {
     sqlite.exec('ALTER TABLE profile ADD COLUMN dismissed_skills TEXT');
   }
+  if (!profileCols.some((c) => c.name === 'cv_stories')) {
+    sqlite.exec('ALTER TABLE profile ADD COLUMN cv_stories TEXT');
+  }
+  if (!profileCols.some((c) => c.name === 'cv_interview_transcript')) {
+    sqlite.exec('ALTER TABLE profile ADD COLUMN cv_interview_transcript TEXT');
+  }
 
-  // Artifact gained a filename slot — cover letters carry a clickbait save-as name.
+  // Artifact gained a filename slot, cover letters carry a clickbait save-as name.
   if (!artifactCols.some((c) => c.name === 'filename')) {
     sqlite.exec('ALTER TABLE artifact ADD COLUMN filename TEXT');
+  }
+
+  // Artifact gained a story_id slot for story-mode cover letters; lets us
+  // surface "which story was sent" in the application history.
+  if (!artifactCols.some((c) => c.name === 'story_id')) {
+    sqlite.exec('ALTER TABLE artifact ADD COLUMN story_id TEXT');
   }
 
   // Migrate skills from string[] to { name, strength }[]. Existing rows stored
@@ -246,7 +266,7 @@ function migrate(sqlite: TSqlite) {
           .run(JSON.stringify(upgraded));
       }
     } catch {
-      // malformed skills JSON — leave it; the action layer parses defensively
+      // malformed skills JSON, leave it; the action layer parses defensively
     }
   }
 }

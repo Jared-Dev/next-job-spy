@@ -16,7 +16,7 @@ export function FitScoreRing({ score, size = 56 }: IFitScoreRingProps) {
       sections={[{ value, color }]}
       label={
         <Text ta="center" size="xs" fw={700}>
-          {typeof score === 'number' ? Math.round(score) : '—'}
+          {typeof score === 'number' ? Math.round(score) : '-'}
         </Text>
       }
     />

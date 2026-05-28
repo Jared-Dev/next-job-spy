@@ -268,11 +268,11 @@ function SettingsFormInner({
           data={[
             {
               value: EVerificationMode.Thorough,
-              label: 'Thorough — always verify with the stronger model',
+              label: 'Thorough, always verify with the stronger model',
             },
             {
               value: EVerificationMode.Fast,
-              label: 'Fast — quick model first, escalate when risk is detected',
+              label: 'Fast, quick model first, escalate when risk is detected',
             },
           ]}
           {...form.getInputProps('verificationMode')}
@@ -280,7 +280,7 @@ function SettingsFormInner({
 
         <Switch
           label="Cross-check numbers"
-          description="Flag any number in generated content that isn't in your profile — a free check that runs regardless of the model."
+          description="Flag any number in generated content that isn't in your profile, a free check that runs regardless of the model."
           {...form.getInputProps('crossCheckNumbers', { type: 'checkbox' })}
         />
 

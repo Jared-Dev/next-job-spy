@@ -15,7 +15,7 @@ import { mergeUsage } from './usage';
 const MAX_REWRITES = 2;
 
 /**
- * invokeClaudeAgent for routes that have Claude *draft a document* — a resume
+ * invokeClaudeAgent for routes that have Claude *draft a document*, a resume
  * or a cover letter. Adds the no-dash punctuation rule to the system prompt,
  * then regex-checks the result; if an en/em dash slips through, the document
  * is sent back for a re-write (up to MAX_REWRITES times). Token usage is

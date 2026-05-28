@@ -125,7 +125,7 @@ export function RankUnrankedButton({ jobs }: IRankUnrankedButtonProps) {
           }
         } catch (err) {
           failed += batch.length;
-          // Don't bail entirely — keep ranking the remaining batches.
+          // Don't bail entirely, keep ranking the remaining batches.
           console.error('rank batch failed', err);
         }
       }
@@ -144,7 +144,7 @@ export function RankUnrankedButton({ jobs }: IRankUnrankedButtonProps) {
       title: 'Ranking complete',
       message:
         failed > 0
-          ? `${ranked} ranked · ${failed} failed (likely rate limit — try again later)`
+          ? `${ranked} ranked · ${failed} failed (likely rate limit,try again later)`
           : `${ranked} jobs ranked. Sort or filter by fit score to see the best matches.`,
     });
   }

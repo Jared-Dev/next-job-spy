@@ -14,7 +14,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
       const data = (await res.json()) as { error?: string };
       if (data.error) message = data.error;
     } catch {
-      // ignore parse failure — fall back to statusText
+      // ignore parse failure, fall back to statusText
     }
     throw new Error(message);
   }

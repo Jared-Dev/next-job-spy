@@ -92,7 +92,7 @@ ${body.job.description}`;
 
       // Hand back what they just produced and tell them what's too long.
       // The reprompt is specific: which sections are biggest, which roles
-      // have the most bullets — the model can target the cut.
+      // have the most bullets, so the model can target the cut.
       userPrompt = `${baseUserPrompt}
 
 YOUR PREVIOUS OUTPUT was too long. Estimated rendered height: ~${height}pt vs. a two-page budget of ~${TWO_PAGE_BUDGET_PT}pt.
@@ -104,7 +104,7 @@ Cut more in this next pass following the priority order in the system rules:
 4. Move the 4th role into "earlier" and keep only three detailed roles.
 5. Tighten the summary to one sentence.
 
-PREVIOUS OUTPUT (do not echo verbatim — produce a shorter revision):
+PREVIOUS OUTPUT (do not echo verbatim, produce a shorter revision):
 ${JSON.stringify(parsed)}`;
       attempt += 1;
     }

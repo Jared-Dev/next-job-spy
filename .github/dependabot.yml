@@ -1,13 +1,13 @@
 version: 2
 
 updates:
-  # Application dependencies — the "npm" ecosystem reads pnpm-lock.yaml.
+  # Application dependencies,the "npm" ecosystem reads pnpm-lock.yaml.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    # Don't propose a release until it has aged — mirrors the 7-day
+    # Don't propose a release until it has aged,mirrors the 7-day
     # minimumReleaseAge supply-chain policy in pnpm-workspace.yaml, so
     # Dependabot's PRs pass the install policy instead of fighting it.
     cooldown:

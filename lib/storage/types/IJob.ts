@@ -43,6 +43,28 @@ export const JobSchema = z.object({
   livenessCheckedAt: z.number().int().optional(),
   /** Skills/tools/keywords extracted from the description; cached after first run. */
   desiredSkills: z.array(z.string()).optional(),
+  /**
+   * Candidate has marked this posting as not accepting cover letters. Hides the
+   * cover-letter panel for this job and surfaces in the application history.
+   */
+  noCoverLetter: z.boolean().optional(),
+  /**
+   * Cached per-job ranking of the candidate's cv stories. `hash` covers
+   * (job description + profile id + story content+ids), so any input change
+   * invalidates the cache and triggers a re-rank. Items are ordered best-first.
+   */
+  storyRanking: z
+    .object({
+      hash: z.string(),
+      items: z.array(
+        z.object({
+          storyId: z.string(),
+          why: z.string(),
+        }),
+      ),
+      rankedAt: z.number().int(),
+    })
+    .optional(),
 });
 
 export interface IJob extends z.infer<typeof JobSchema> {}

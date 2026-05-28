@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * One section of a personal site — e.g. "Portfolio", "Technical blog",
+ * One section of a personal site, e.g. "Portfolio", "Technical blog",
  * "Case studies", "Interactive resume", "About". `description` is an optional
  * one-liner giving the resume generator context to reference it.
  */

@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report security issues **privately** — do not open a public issue for
+Please report security issues **privately**, do not open a public issue for
 them.
 
 Use GitHub's private vulnerability reporting: open the **Security** tab of this

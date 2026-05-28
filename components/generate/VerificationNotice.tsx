@@ -117,7 +117,7 @@ export function VerificationNotice({ artifact }: IVerificationNoticeProps) {
         color="teal"
         variant="light"
         icon={<IconShieldCheck size={18} />}
-        title="Verified — every claim traces to your profile"
+        title="Verified, every claim traces to your profile"
       >
         <Group justify="space-between">
           <Text size="xs" c="dimmed">
@@ -149,7 +149,7 @@ export function VerificationNotice({ artifact }: IVerificationNoticeProps) {
               <Text size="sm" fw={500} component="span">
                 “{finding.claim}”
               </Text>
-              {' — '}
+              {': '}
               <Text size="sm" c="dimmed" component="span">
                 {finding.issue}
               </Text>

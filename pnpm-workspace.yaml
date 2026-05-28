@@ -10,13 +10,13 @@ allowBuilds:
   unrs-resolver: true
 
 # Refuse to install a package version until it has been public this many
-# minutes. 10080 = 7 days — long enough that the overwhelming majority of
+# minutes. 10080 = 7 days,long enough that the overwhelming majority of
 # hijacked or malicious releases are detected and pulled from the registry
 # before they could land here. Lower it (4320 = 3 days) for faster updates
 # at slightly more exposure.
 minimumReleaseAge: 10080
 
-# Versions exempt from the age requirement — packages whose only published
+# Versions exempt from the age requirement,packages whose only published
 # version is still inside the window. pnpm maintains this list automatically.
 minimumReleaseAgeExclude:
   - '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.146'
