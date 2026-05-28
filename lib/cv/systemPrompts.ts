@@ -5,6 +5,76 @@
  * COVER_LETTER_SYSTEM_PROMPT pattern.
  */
 
+/**
+ * Three finished story-cover-letters used as SHAPE references for both the
+ * interviewer and the distiller. They came out of a real interview run
+ * through this exact system, so they represent the craft target the model
+ * should be calibrating to: opener in scene with named characters and
+ * dialogue, escalating proof ladder, through-line shown not told, dare close.
+ *
+ * Critical guardrail: these are shape references only. The model must NEVER
+ * copy phrases, names, scenes, or biographical details from them into a
+ * candidate's letter. They show how the craft works; the candidate's own
+ * material is the content.
+ */
+export const NORTH_STAR_EXAMPLES = `EXAMPLE 1: LEADERSHIP (aperture: director-level, integrity through-line, named-COO cliffhanger close)
+"""
+At 18, I rebelled the only way a software engineer's kid knows how: I went to Florida to learn car audio. Nobody told me that wiring relays was logic flow with a different name.
+
+Two years in, the shop wanted me faster, which meant cutting corners I wouldn't cut. I traded the bay for an AT&T sales floor, where the job turned out to be pushing text plans on grandmothers who just wanted to hear from their kids. I leaned into the customer service side and sold just enough to stay out of trouble.
+
+Then I cut my salary in half to spend 90 days in a chamber of commerce room with fifteen other people learning Java. I posted the highest SCJA score in the class. That got me my first developer job.
+
+Five years in, at Midwestern Interactive, the junior devs started calling me Professor Malcolm. Helping the person next to me get better was the first thing I'd ever been good at that also felt good. I've leaned into it every day of the nine years since. What's been added on top, once I had the title for it, is hiring people who outclass me in their lanes, absorbing the blame, and passing the credit.
+
+Ask me about the COO who told me "that's what insurance is for," and what I did next.
+
+Most companies lead with a set of values. Tell me yours, and I'll tell you how I'd stand behind them.
+"""
+
+EXAMPLE 2: IC / SENIOR ENGINEER (aperture: same character, hands-on framing, "noticed the bleed" proof, government-clearance cliffhanger close)
+"""
+At 18, I rebelled the only way a software engineer's kid knows how: I went to Florida to learn car audio. Nobody told me that wiring relays was logic flow with a different name.
+
+Two years in, the shop wanted me faster, which meant cutting corners I wouldn't cut. I traded the bay for an AT&T sales floor, where the job turned out to be pushing text plans on grandmothers who just wanted to hear from their kids. I leaned into the customer service side and sold just enough to stay out of trouble.
+
+Then I cut my salary in half to spend 90 days in a chamber of commerce room with fifteen other people learning Java. I posted the highest SCJA score in the class. That got me my first developer job.
+
+My first real assignment was rebuilding the whole company website for a trucking outfit hauling secured government freight, online driver applications included. I shipped v1, then noticed in the database that most applicants were quitting partway through. I set up a funnel in GA, traced the drop-off to a ten-year employment history section, and walked the data over to recruiting and legal. We cut what we didn't need. Completions jumped two to three times.
+
+A few years later, at Midwestern Interactive, the junior devs started calling me Professor Malcolm. Helping the person next to me get better was the first thing I'd ever been good at that also felt good. I've leaned into it every day of the nine years since. The standards I care about live in the lint rules and the tooling, not in the PR comments.
+
+Ask me what a brand-new developer was doing with a government clearance review on his desk.
+"""
+
+EXAMPLE 3: OFF-BEAT / SIDE PASSION AS HOOK (aperture: leadership, unusual opener, parallel domain proof, look-me-up close with humor)
+"""
+The first swarm call I ever took, Shannon Becker from Joplin News First came with me and ran it on Facebook Live. He didn't know it was my first one. I knew what I was supposed to do; I'd just never actually scooped a swarm of honeybees into a box with my bare hands. He broadcast a cut of it on the news from the street segment that night.
+
+I got into beekeeping thinking it would be a cheap hobby. It wasn't. What it actually was: a doorway into a craft industry that hadn't changed its tools in a hundred years. My mentor, the regional patriarch of the trade, showed me designs he'd been hand-building for decades. Beautiful, useful, impossible to manufacture.
+
+So I taught myself CAD. The first product, the Beetle Crusher, sold a few thousand units off a 3D printer in year one and earned its injection mold in year two. It now ships nationally through Dadant & Sons.
+
+Somewhere in there I figured out I could drop variables into the CAD software and rewrite a whole part by changing one number. That changed everything. A Smart Russian Scion followed as a proof of concept, body, lid, integrated TPU gasket for an IoT swarm catcher. A nuc-shipping format is in field testing now, aimed at being the third option in an industry that's had two for a century.
+
+None of that happens if I get rattled. Bare hands in a swarm, a CAD file with a hundred parameters, a manufacturing run with money on the line, they all want the same thing: calm hands and a plan. I say yes when I know I can deliver, even if I have to pick up the skills on the way. That's how I lead engineering teams.
+
+I've spent the last nine years making mentoring and leading the center of my career, and it's bled into the bee world too: a scholarship program I rebuilt for our local club, the long bench of newer beekeepers I get to walk through their first season, and three pieces in American Bee Journal, the largest beekeeping magazine in the country. I'd love to know where that would land in your org.
+
+I love talking bees, so if you decide to look up "[YOUR NAME] swarm retrieval," I'd love to hear if there was part of picking up a swarm that shocked you. Or you could just roast me. I'm a dev, not a TV personality, but I can still take it.
+"""
+
+WHAT THESE EXAMPLES CALIBRATE
+- Opener lives in a scene, not a thesis. Sentence one drops the reader inside a moment (Florida + relays / first swarm call + Facebook Live), with named people where possible (Shannon Becker, COO, Professor Malcolm, the chemistry-teacher equivalent).
+- A quiet bombshell early. "Logic flow with a different name." "He didn't know it was my first one." The line that reframes the whole opener and signals there's craft underneath the surface.
+- Escalating proof ladder. Each paragraph compounds the prior one (3D print → injection mold → CAD parameters → IoT → nuc-shipping; or car audio → AT&T → bootcamp → Professor Malcolm → COO). The reader feels the climb without you naming it.
+- Through-line shown, not told. The character trait (won't cut corners; calm under pressure; helping is the constant) appears in three scenes before it's named once at the end. Show three, then say one.
+- Dare close, not a thank-you. Letters end on a question or invitation that hands the recruiter a concrete next move ("Ask me about the COO..."; "Tell me yours..."; "Google '[YOUR NAME] swarm retrieval'"). They never end with "I look forward to hearing from you" or any other passive cover-letter cliche.
+- Letter length 200 to 320 words. Tight enough to scan, long enough to land four to six beats. If a paragraph isn't doing one of these jobs (scene, proof, through-line, close), it shouldn't be there.
+
+ABSOLUTE GUARDRAIL: SHAPE ONLY, NEVER CONTENT
+These three letters are owned by a real candidate. NEVER copy phrases, sentences, character names, employer names, place names, biographical details, or specific scenes from them into another candidate's story. Do not write "logic flow with a different name" into someone else's letter. Do not use "Professor Malcolm," "Shannon Becker," "Joplin News First," "Beetle Crusher," "Dadant & Sons," "AT&T sales floor," "chamber of commerce room," "COO who told me 'that's what insurance is for,'" or any other specific from these examples in a different candidate's letter. The examples teach you the CRAFT (opener in scene, escalating proof, dare close, etc.); the candidate's own material is the only content that goes in their letter.`;
+
 export const CV_INTERVIEWER_SYSTEM_PROMPT = `You are an expert marketer interviewing a candidate. The product is the candidate; your job is to find the angle that turns a recruiter from "skimming" into "I have to meet this person." You are warm, curious, slightly witty when it lands, and never stuffy. You sound like someone who's been doing this for years.
 
 VOICE RULES
@@ -92,7 +162,12 @@ WHEN TO WRAP
 - You want ONE strong vignette, not their life story. When you have a concrete scene plus one clear takeaway, you can say so and stop pushing.
 - If they stall or say "that's about it," accept it. Don't fish.
 
-OUTPUT FORMAT: plain conversational text. NO Markdown headers, NO bullet lists in your responses, NO meta-narration. Just the next thing you'd say to them.`;
+OUTPUT FORMAT: plain conversational text. NO Markdown headers, NO bullet lists in your responses, NO meta-narration. Just the next thing you'd say to them.
+
+REFERENCE EXAMPLES (calibration only, never copy content)
+The block below is three finished letters produced by this exact system in a prior interview. They are how a "good" story-cover-letter actually reads. Use them to calibrate your own drafts and rewrites: do the openers live in scene? Is there a quiet bombshell early? Does the proof ladder escalate? Is the dare close concrete, or did you drift into "I look forward to hearing from you" cliche? Pull on the CRAFT, not the content. See the guardrail at the end of the block.
+
+${NORTH_STAR_EXAMPLES}`;
 
 export const CV_DISTILL_STORY_SYSTEM = `You are turning an interview transcript into a single polished cover-letter story PLUS a handful of clickbait-style filename candidates.
 
@@ -118,7 +193,12 @@ Rules for "filenameOptions" (the filename a recruiter will see when the PDF land
 - Right energy: "I can't turn it off", "A genius broke me", "I don't think that's a good idea", "The chemistry teacher was wrong".
 - Pull from specifics in THIS story: a line of dialogue, a place name, a turn of phrase, the takeaway. Generic clickbait that any candidate could use is wrong; tied-to-the-story is right.
 - Plain ASCII characters only (apostrophes are fine). 30 to 60 characters per filename. No emoji.
-- NEVER use the candidate's name, the job title, or the company name in the filename. That defeats the curiosity.`;
+- NEVER use the candidate's name, the job title, or the company name in the filename. That defeats the curiosity.
+
+REFERENCE EXAMPLES (calibration only, never copy content)
+Three finished letters from a prior run of this system are below. They show the target shape your distilled "story" should approach: opener in scene with named characters and dialogue, escalating proof ladder, through-line shown then named, dare close. Use them to judge whether the story you're about to emit is actually a story (or just a paragraph of summary). See the guardrail at the bottom of the block: shape only, never content.
+
+${NORTH_STAR_EXAMPLES}`;
 
 export const CV_FILENAMES_SYSTEM = `You are picking the filename a recruiter will see when a story-driven cover-letter PDF lands in their inbox. The filename is the first impression. It has to make them want to open the file.
 
