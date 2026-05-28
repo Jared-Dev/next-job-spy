@@ -40,6 +40,7 @@ import { adapter } from '@/lib/storage';
 import { ESkillStrength } from '@/lib/storage/types/ESkillStrength';
 import type { IProfile } from '@/lib/storage/types/IProfile';
 
+import { CvStoryPanel } from './CvStoryPanel';
 import { ImportProfileButton } from './ImportProfileButton';
 import type { IBulletEditorProps } from './types/IBulletEditorProps';
 import type { IProfileFormProps } from './types/IProfileFormProps';
@@ -101,7 +102,16 @@ function toFormValues(initial: IProfile | undefined): TProfileFormValues {
   };
 }
 
-function toProfile(values: TProfileFormValues): IProfile {
+/**
+ * Merge form values with the existing profile so saving the form NEVER drops
+ * fields the form doesn't expose. Without this merge, hitting Save would wipe
+ * cvStories, cvInterviewTranscript, dismissedSkills, forFun, and preferences
+ * because toProfile would only re-emit the form fields.
+ */
+function toProfile(
+  values: TProfileFormValues,
+  existing: IProfile | undefined,
+): IProfile {
   const trim = (s: string) => s.trim();
   const emptyToUndef = (s: string) => (s.trim().length === 0 ? undefined : s.trim());
 
@@ -114,6 +124,11 @@ function toProfile(values: TProfileFormValues): IProfile {
   const siteUrl = emptyToUndef(values.personalSiteUrl);
 
   return {
+    cvStories: existing?.cvStories,
+    cvInterviewTranscript: existing?.cvInterviewTranscript,
+    dismissedSkills: existing?.dismissedSkills,
+    forFun: existing?.forFun,
+    preferences: existing?.preferences,
     fullName: emptyToUndef(values.fullName),
     headline: emptyToUndef(values.headline),
     email: emptyToUndef(values.email),
@@ -233,7 +248,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
       onSubmit={form.onSubmit((values) => {
         startTransition(async () => {
           try {
-            await adapter.saveProfile(toProfile(values));
+            await adapter.saveProfile(toProfile(values, initial));
             notifications.show({
               color: 'teal',
               icon: <IconCheck size={18} />,
@@ -261,7 +276,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
                 Have a profile written up?
               </Text>
               <Text size="xs" c="dimmed">
-                Import a Markdown file (see profile.example.md) — Claude distills it
+                Import a Markdown file (see profile.example.md),Claude distills it
                 into the fields below for you to review.
               </Text>
             </Stack>
@@ -297,7 +312,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
                   Personal site
                 </Text>
                 <Text size="xs" c="dimmed">
-                  Your portfolio / personal site — the recruiter-facing hub. Goes on every generated resume.
+                  Your portfolio / personal site,the recruiter-facing hub. Goes on every generated resume.
                 </Text>
               </Stack>
               {form.values.personalSiteUrl.trim().length > 0 ? (
@@ -324,7 +339,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
             {form.values.personalSiteUrl.trim().length > 0 ? (
               form.values.personalSiteSections.length === 0 ? (
                 <Text size="xs" c="dimmed">
-                  Optionally list what&apos;s on the site — Portfolio, Blog, Case
+                  Optionally list what&apos;s on the site,Portfolio, Blog, Case
                   studies, etc. Each section can carry a one-line note for context.
                 </Text>
               ) : (
@@ -337,7 +352,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
                         {...form.getInputProps(`personalSiteSections.${idx}.name`)}
                       />
                       <TextInput
-                        placeholder="What's there — e.g. case studies of 6 shipped products"
+                        placeholder="What's there, e.g. case studies of 6 shipped products"
                         style={{ flex: 1 }}
                         {...form.getInputProps(`personalSiteSections.${idx}.description`)}
                       />
@@ -395,7 +410,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
         <Section
           title="Summary"
           icon={IconSparkles}
-          description="A short paragraph in your voice — kept when tailoring per-job resumes. Minimum 2 sentences; 3–5 (~80–120 words) recommended. Longer is fine."
+          description="A short paragraph in your voice, kept when tailoring per-job resumes. Minimum 2 sentences; 3 to 5 (about 80 to 120 words) recommended. Longer is fine."
         >
           <Textarea
             placeholder="I'm a frontend engineer with 8 years of experience…"
@@ -406,10 +421,12 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
           />
         </Section>
 
+        <CvStoryPanel profile={initial} />
+
         <Section
           title="Career context"
           icon={IconCompass}
-          description="Where you're headed. Sharpens ranking and frames tailored resumes. Every field is optional — fill what you can."
+          description="Where you're headed. Sharpens ranking and frames tailored resumes. Every field is optional, fill what you can."
         >
           <Stack gap="md">
             <Textarea
@@ -423,11 +440,11 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
             />
             <Textarea
               label="Looking for"
-              description="Concrete role attributes — titles, comp floor, remote, company stage, domains."
+              description="Concrete role attributes, titles, comp floor, remote, company stage, domains."
               autosize
               minRows={2}
               maxRows={6}
-              placeholder="Remote (US), Series B–D, developer tools or fintech…"
+              placeholder="Remote (US), Series B to D, developer tools or fintech…"
               {...form.getInputProps('lookingFor')}
             />
             <Textarea
@@ -441,7 +458,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
             />
             <Textarea
               label="Working style"
-              description="How you work best. Helps tailoring frame you for a team. Optional; 2–4 sentences recommended."
+              description="How you work best. Helps tailoring frame you for a team. Optional; 2 to 4 sentences recommended."
               autosize
               minRows={2}
               maxRows={5}
@@ -454,7 +471,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
         <Section
           title="Work history"
           icon={IconBriefcase}
-          description="Most recent first. Your highlights become the seeds for ATS-tailored bullets — 2 per role minimum, 4–6 ideal."
+          description="Most recent first. Your highlights become the seeds for ATS-tailored bullets, 2 per role minimum, 4 to 6 ideal."
           rightAction={
             <Button
               size="xs"
@@ -525,7 +542,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
 
                     <BulletEditor
                       label="Highlights"
-                      description="Specifics and metrics matter — these become the bullets in tailored resumes."
+                      description="Specifics and metrics matter, these become the bullets in tailored resumes."
                       values={entry.highlights}
                       onChange={(next) => form.setFieldValue(`workHistory.${idx}.highlights`, next)}
                     />
@@ -622,7 +639,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
         <Section
           title="Skills"
           icon={IconListCheck}
-          description="Rate each skill's strength — ranking weights jobs against where you're strong, and tailoring leads with your best. Minimum ~8; 20–40 recommended."
+          description="Rate each skill's strength, ranking weights jobs against where you're strong, and tailoring leads with your best. Minimum about 8; 20 to 40 recommended."
           rightAction={
             <Button
               size="xs"
@@ -635,7 +652,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
           }
         >
           {form.values.skills.length === 0 ? (
-            <EmptyHint text="No skills yet. Add a few — be generous, every real skill is a keyword the matcher can use." />
+            <EmptyHint text="No skills yet. Add a few,be generous, every real skill is a keyword the matcher can use." />
           ) : (
             <Stack gap="xs">
               {form.values.skills.map((_, idx) => (
@@ -661,7 +678,7 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
         <Section
           title="Achievements"
           icon={IconTrophy}
-          description="Awards, certifications, talks, OSS contributions — anything outside of work history."
+          description="Awards, certifications, talks, OSS contributions, anything outside of work history."
         >
           <BulletEditor
             label="Achievements"

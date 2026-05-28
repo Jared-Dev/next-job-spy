@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import { blob, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { ICvInterviewMessage } from '@/lib/cv/types/ICvInterviewMessage';
+import type { ICvStory } from '@/lib/cv/types/ICvStory';
 import type { ICareerContext } from '@/lib/storage/types/ICareerContext';
 import type { IEducationEntry } from '@/lib/storage/types/IEducationEntry';
 import type { IPersonalSite } from '@/lib/storage/types/IPersonalSite';
@@ -30,8 +32,14 @@ export const profile = sqliteTable('profile', {
   skills: text('skills', { mode: 'json' }).$type<ISkill[]>(),
   achievements: text('achievements', { mode: 'json' }).$type<string[]>(),
   forFun: text('for_fun'),
-  /** Skills the candidate told us they don't have — stored lowercased so we stop asking. */
+  /** Skills the candidate told us they don't have, stored lowercased so we stop asking. */
   dismissedSkills: text('dismissed_skills', { mode: 'json' }).$type<string[]>(),
+  /** Saved cover-letter stories the candidate can pick from per job. */
+  cvStories: text('cv_stories', { mode: 'json' }).$type<ICvStory[]>(),
+  /** Running CV interview chat transcript, resumable across sessions. */
+  cvInterviewTranscript: text('cv_interview_transcript', { mode: 'json' }).$type<
+    ICvInterviewMessage[]
+  >(),
   preferences: text('preferences', { mode: 'json' }).$type<IPreferences>(),
   careerContext: text('career_context', { mode: 'json' }).$type<ICareerContext>(),
   sourceMarkdown: text('source_markdown'),
@@ -80,6 +88,14 @@ export const job = sqliteTable('job', {
   /** Skills/tools/keywords extracted from the job description for the
    * missing-skills prompt. Cached so we don't re-extract on every open. */
   desiredSkills: text('desired_skills', { mode: 'json' }).$type<string[]>(),
+  /** Candidate marked this posting as not accepting cover letters. */
+  noCoverLetter: integer('no_cover_letter', { mode: 'boolean' }),
+  /** Cached per-job ranking of the candidate's cv stories. JSON blob keyed by hash. */
+  storyRanking: text('story_ranking', { mode: 'json' }).$type<{
+    hash: string;
+    items: { storyId: string; why: string }[];
+    rankedAt: number;
+  }>(),
 });
 
 export const screeningAudit = sqliteTable('screening_audit', {
@@ -116,6 +132,8 @@ export const artifact = sqliteTable('artifact', {
   content: text('content').notNull(),
   /** Recommended save-as filename (cover letters use the model's clickbait name). */
   filename: text('filename'),
+  /** Source story id for story-mode cover letters; null otherwise. */
+  storyId: text('story_id'),
   usage: text('usage', { mode: 'json' }),
   pinned: integer('pinned', { mode: 'boolean' }),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),

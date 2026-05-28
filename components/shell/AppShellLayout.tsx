@@ -28,6 +28,8 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+import { useModKey } from '@/lib/ui/useModKey';
+
 import { Logo } from '@/components/brand/Logo';
 import { LocalScreenDriver } from '@/components/jobs/LocalScreenDriver';
 import { useAutoRefresh } from '@/lib/jobs/useAutoRefresh';
@@ -50,6 +52,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [opened, { toggle, close }] = useDisclosure();
+  const mod = useModKey();
   useAutoRefresh();
 
   // Print routes render without app chrome so the page is a clean document.
@@ -174,8 +177,8 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         </AppShell.Section>
         <AppShell.Section>
           <Box px="xs" py="sm">
-            <Text size="xs" c="dimmed">
-              v0.1 · {String.fromCharCode(8984)}K for actions
+            <Text size="xs" c="dimmed" suppressHydrationWarning>
+              v0.1 · {mod.isMac ? `${mod.symbol}K` : `${mod.symbol}+K`} for actions
             </Text>
           </Box>
         </AppShell.Section>
