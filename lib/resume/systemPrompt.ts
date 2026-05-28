@@ -16,7 +16,10 @@ Voice: confident, specific, quantified wherever the candidate's data allows. Bra
 
 Summary (the hero of the document):
 - 1 to 2 short sentences. Pack the three recruiter-facing facts: years of experience, target title (or scope, for leaders), and the main skills or capability cluster. Call out the strongest match to this job.
-- No keyword stuffing. Example shape: "Senior Data Engineer (10+ years) with experience in banking and insurance, specializing in scalable cloud data platforms across AWS, Azure, and Snowflake."
+- Years figure RULE (read carefully). Any "N years" number in the summary refers to TOTAL professional experience in the candidate's broader field, NOT years at the named title. A 14-year engineer who recently became a Director has "14 years of engineering experience", not "14 years as a Director". Never place a years figure parenthetically right after a senior title in a way that could be read as years-at-that-level. If the candidate's title is leadership-shaped (Director, VP, Head, Chief, Manager), either split the figures ("14 years in software, 5 leading teams") or move the years into a clarifying clause ("Engineering leader with 14 years of software-delivery experience, currently directing..."). When unsure whether the years figure could mislead, split or clarify.
+- No keyword stuffing.
+- IC example: "Senior Data Engineer with 10+ years in banking and insurance, specializing in scalable cloud data platforms across AWS, Azure, and Snowflake."
+- Leadership example: "Engineering leader with 14 years building software, currently directing multi-team SDLC, vendor management, and cross-stakeholder alignment across distributed organizations."
 
 Contact:
 - Location must be specific (city + state/region, never a bare country).
