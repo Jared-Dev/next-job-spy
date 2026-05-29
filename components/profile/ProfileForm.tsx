@@ -18,6 +18,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
+import { MonthPickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
@@ -53,6 +54,20 @@ const STRENGTH_OPTIONS = [
   { value: ESkillStrength.Advanced, label: 'Advanced' },
   { value: ESkillStrength.Expert, label: 'Expert' },
 ];
+
+/**
+ * Profile stores work-history dates as "YYYY-MM". MonthPickerInput speaks
+ * Mantine's `YYYY-MM-DD` DateStringValue, so we pad with "-01" on the way
+ * in and strip the day on the way out. Pure string slicing, no Date and
+ * no dayjs in app code, so there's no UTC/local-time skew.
+ */
+function monthValue(stored: string | undefined): string | null {
+  if (!stored) return null;
+  return /^\d{4}-\d{2}$/.test(stored) ? `${stored}-01` : null;
+}
+function toMonthString(picked: string | null): string {
+  return picked ? picked.slice(0, 7) : '';
+}
 
 function toFormValues(initial: IProfile | undefined): TProfileFormValues {
   return {
@@ -512,16 +527,32 @@ function ProfileFormInner({ initial }: { initial: IProfile }) {
                         placeholder="Remote / SF, CA"
                         {...form.getInputProps(`workHistory.${idx}.location`)}
                       />
-                      <TextInput
+                      <MonthPickerInput
                         label="Start"
-                        placeholder="2022-01"
-                        {...form.getInputProps(`workHistory.${idx}.startDate`)}
+                        placeholder="Pick month"
+                        valueFormat="MMM YYYY"
+                        clearable
+                        value={monthValue(entry.startDate)}
+                        onChange={(v) =>
+                          form.setFieldValue(
+                            `workHistory.${idx}.startDate`,
+                            toMonthString(v),
+                          )
+                        }
                       />
-                      <TextInput
+                      <MonthPickerInput
                         label="End"
-                        placeholder="2024-06"
+                        placeholder="Pick month"
+                        valueFormat="MMM YYYY"
+                        clearable
                         disabled={entry.current}
-                        {...form.getInputProps(`workHistory.${idx}.endDate`)}
+                        value={monthValue(entry.endDate)}
+                        onChange={(v) =>
+                          form.setFieldValue(
+                            `workHistory.${idx}.endDate`,
+                            toMonthString(v),
+                          )
+                        }
                       />
                     </SimpleGrid>
 

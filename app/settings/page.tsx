@@ -2,6 +2,7 @@
 
 import { Container, Paper, Stack } from '@mantine/core';
 
+import { BookmarkletInstall } from '@/components/settings/BookmarkletInstall';
 import { CoverLetterMaintenance } from '@/components/settings/CoverLetterMaintenance';
 import { DataPortability } from '@/components/settings/DataPortability';
 import { SettingsForm } from '@/components/settings/SettingsForm';
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <Paper p="lg" withBorder>
           <SettingsForm />
         </Paper>
+        <BookmarkletInstall />
         <CoverLetterMaintenance />
         <DataPortability />
       </Stack>

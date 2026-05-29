@@ -1,6 +1,6 @@
 'use server';
 
-import { and, asc, desc, eq, gte, inArray, isNull, like, notInArray, or, sql } from 'drizzle-orm';
+import { type SQL, and, asc, desc, eq, gte, inArray, isNull, like, notInArray, or, sql } from 'drizzle-orm';
 
 import { detectJobLanguage, languageDisplayName } from '@/lib/jobs/detectLanguage';
 import { db, schema } from '@/lib/storage/local/sqlite/Database';
@@ -58,14 +58,24 @@ function rowToJob(row: typeof schema.job.$inferSelect): IJob {
 
 export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
   const conditions = [];
+  // Manual imports are user-curated: a row the user explicitly clicked
+  // the bookmarklet on (or typed in by hand) should never be silently
+  // filtered out by visibility heuristics. Only the user clicking Hide
+  // (a status change) or explicitly unchecking Manual under Sources
+  // should remove them. Each auto-applied condition below gets wrapped
+  // so manual rows pass regardless of country/language/remote/score state.
+  const exemptManual = (cond: SQL): SQL =>
+    or(cond, eq(schema.job.source, ESourceId.Manual))!;
   // Hide cascade-dropped jobs from the default view; the audit UI flips
   // `includeScreened` to sample them.
   if (!filters?.includeScreened) {
     conditions.push(
-      notInArray(schema.job.pipelineStatus, [
-        EPipelineStatus.ScreenedOut,
-        EPipelineStatus.Expired,
-      ]),
+      exemptManual(
+        notInArray(schema.job.pipelineStatus, [
+          EPipelineStatus.ScreenedOut,
+          EPipelineStatus.Expired,
+        ]),
+      ),
     );
   }
   if (filters?.status && filters.status.length > 0) {
@@ -75,7 +85,7 @@ export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
     conditions.push(inArray(schema.job.source, filters.sources));
   }
   if (filters?.remoteOnly) {
-    conditions.push(eq(schema.job.remote, true));
+    conditions.push(exemptManual(eq(schema.job.remote, true)));
   }
   if (filters?.countries && filters.countries.length > 0) {
     const codes = filters.countries.filter((c) => c !== UNKNOWN_COUNTRY_TOKEN);
@@ -84,9 +94,9 @@ export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
     if (codes.length > 0) countryClauses.push(inArray(schema.job.country, codes));
     if (includeUnknown) countryClauses.push(isNull(schema.job.country));
     if (countryClauses.length > 0) {
-      conditions.push(
-        countryClauses.length === 1 ? countryClauses[0] : or(...countryClauses)!,
-      );
+      const combined =
+        countryClauses.length === 1 ? countryClauses[0] : or(...countryClauses)!;
+      conditions.push(exemptManual(combined));
     }
   }
   if (filters?.languages && filters.languages.length > 0) {
@@ -96,13 +106,13 @@ export async function listJobsAction(filters?: IJobFilters): Promise<IJob[]> {
     if (codes.length > 0) langClauses.push(inArray(schema.job.language, codes));
     if (includeUnknown) langClauses.push(isNull(schema.job.language));
     if (langClauses.length > 0) {
-      conditions.push(
-        langClauses.length === 1 ? langClauses[0] : or(...langClauses)!,
-      );
+      const combined =
+        langClauses.length === 1 ? langClauses[0] : or(...langClauses)!;
+      conditions.push(exemptManual(combined));
     }
   }
   if (typeof filters?.minFitScore === 'number') {
-    conditions.push(gte(schema.job.fitScore, filters.minFitScore));
+    conditions.push(exemptManual(gte(schema.job.fitScore, filters.minFitScore)));
   }
   if (filters?.search) {
     const needle = `%${filters.search}%`;

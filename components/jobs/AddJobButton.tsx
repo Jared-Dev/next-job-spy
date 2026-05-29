@@ -23,9 +23,13 @@ import {
   IconPlus,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { postJson } from '@/lib/ai/postJson';
+import {
+  PENDING_IMPORT_STORAGE_KEY,
+  type IPendingImport,
+} from '@/lib/jobs/importJob/pendingImport';
 import { EAnthropicModel } from '@/lib/ai/types/EAnthropicModel';
 import { inferCountry } from '@/lib/jobs/inferCountry';
 import type { IImportedJob } from '@/lib/jobs/importJob/types/IImportedJob';
@@ -87,6 +91,63 @@ export function AddJobButton() {
           : null,
     },
   });
+
+  // The bookmarklet handoff (popup at /clip) extracts the posting,
+  // stashes the merged fields in sessionStorage, then redirects here.
+  // On mount we hydrate the form and pop the modal so the user lands
+  // on a populated review screen instead of an empty form. We clear
+  // the storage immediately so a refresh doesn't re-trigger this.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = sessionStorage.getItem(PENDING_IMPORT_STORAGE_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(PENDING_IMPORT_STORAGE_KEY);
+    try {
+      const pending = JSON.parse(raw) as IPendingImport;
+      const f = pending.fields ?? {};
+      form.setValues({
+        title: f.title ?? '',
+        company: f.company ?? '',
+        location: f.location ?? '',
+        url: pending.url ?? '',
+        remote: f.remote ?? false,
+        description: f.descriptionMd ?? '',
+      });
+      if (f.descriptionMd) {
+        // Matches the pattern at /jobs page.tsx for browser-only state
+        // synced via useEffect: setState-in-effect is the only way to
+        // hydrate from sessionStorage post-mount without an SSR mismatch.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowPreview(true);
+      }
+      open();
+      const missing: string[] = [];
+      if (!f.title) missing.push('title');
+      if (!f.company) missing.push('company');
+      if (!f.descriptionMd) missing.push('description');
+      notifications.show({
+        color: missing.length > 0 ? 'yellow' : 'teal',
+        icon:
+          missing.length > 0 ? (
+            <IconExclamationCircle size={18} />
+          ) : (
+            <IconCheck size={18} />
+          ),
+        title:
+          missing.length > 0
+            ? `Imported, ${missing.join(' / ')} needs review`
+            : 'Imported from the page',
+        message:
+          missing.length > 0
+            ? 'Fill the blank fields, tweak anything wrong, then save.'
+            : 'Review the fields, then save the job.',
+      });
+    } catch {
+      // Stash was malformed; the modal stays closed and the form
+      // empty. No noisy alert; the user can hit Add job manually.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleImport() {
     const url = form.values.url.trim();
@@ -232,9 +293,11 @@ export function AddJobButton() {
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Paste a posting URL and hit Try import to auto-fill,or enter
+              Paste a posting URL and hit Try import to auto-fill, or enter
               everything by hand. A saved job can be ranked and tailored just
-              like a sourced one.
+              like a sourced one. For sites that block our fetch (LinkedIn,
+              Indeed, Glassdoor), grab the one-click bookmarklet from{' '}
+              <a href="/settings">Settings</a>.
             </Text>
 
             <Group align="flex-end" wrap="nowrap" gap="xs">
