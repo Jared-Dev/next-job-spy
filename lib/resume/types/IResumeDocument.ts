@@ -27,7 +27,7 @@ export const ResumeRoleSchema = z.object({
   context: z.string().default(''),
   /** Leadership-scope strip, team size, budget, reporting line. Leader only. */
   scope: z.string().optional(),
-  /** Human-readable date range, e.g. "2021 to Present". */
+  /** Human-readable date range with month precision, e.g. "Jan 2021 to Present", "Mar 2019 to Aug 2023". */
   dates: z.string().default(''),
   /** Location of the role (or "Remote"). */
   location: z.string().optional(),

@@ -43,7 +43,7 @@ export const SAMPLE_RESUME: IResumeDocument = {
       company: 'Cartographe',
       context:
         'Series B mapping platform. Promoted to lead the platform pillar of a 30-engineer frontend org.',
-      dates: '2021 to Present',
+      dates: 'Mar 2021 to Present',
       location: 'Remote',
       bullets: [
         'Re-architected the map editor in React, replacing a brittle legacy renderer with a streaming canvas approach.',
@@ -61,7 +61,7 @@ export const SAMPLE_RESUME: IResumeDocument = {
       title: 'Staff Frontend Engineer',
       company: 'Folio',
       context: 'Series C collaborative document editor; presence and commenting team.',
-      dates: '2018 to 2021',
+      dates: 'Jun 2018 to Feb 2021',
       location: 'San Francisco, CA',
       bullets: [
         'Led the incremental migration from a legacy Angular app to Next.js with zero downtime, shipped over three quarters.',
@@ -76,7 +76,7 @@ export const SAMPLE_RESUME: IResumeDocument = {
       title: 'Senior Frontend Engineer',
       company: 'Meridian Health',
       context: 'Patient-portal platform serving 2M+ members.',
-      dates: '2015 to 2018',
+      dates: 'Aug 2015 to May 2018',
       location: 'Boston, MA',
       bullets: [
         'Built the appointment-scheduling experience used by 2M+ members.',
